@@ -1,4 +1,4 @@
-package needle
+package cactus
 
 import (
 	"context"
@@ -108,7 +108,7 @@ func (s *Stream) Stop(ctx context.Context) (StreamTranscript, error) {
 // the runtime mutex.
 func (s *Stream) bindLocked() (*nativeAPI, error) {
 	if s.stopped {
-		return nil, errors.New("needle: stream is stopped")
+		return nil, errors.New("cactus: stream is stopped")
 	}
 	r := s.whistle.runtime
 	if r.stream != nil && r.stream != s {
@@ -150,7 +150,7 @@ func (s *Stream) decode(api *nativeAPI, operation string, code int32) (StreamTra
 	}
 	var step StreamTranscript
 	if err := json.Unmarshal(data, &step); err != nil {
-		return StreamTranscript{}, fmt.Errorf("needle: decode stream step: %w", err)
+		return StreamTranscript{}, fmt.Errorf("cactus: decode stream step: %w", err)
 	}
 	return step, nil
 }

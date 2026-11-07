@@ -1,4 +1,4 @@
-package needle
+package cactus
 
 import (
 	"context"
@@ -11,8 +11,8 @@ import (
 )
 
 func TestNativeEmbeddings(t *testing.T) {
-	if os.Getenv("NEEDLE_TEST_NATIVE") != "1" {
-		t.Skip("set NEEDLE_TEST_NATIVE=1 to test native embeddings")
+	if os.Getenv("CACTUS_TEST_NATIVE") != "1" {
+		t.Skip("set CACTUS_TEST_NATIVE=1 to test native embeddings")
 	}
 	ctx := context.Background()
 	type weatherArguments struct {
@@ -63,9 +63,9 @@ func TestNativeEmbeddings(t *testing.T) {
 }
 
 func TestNativeEngine(t *testing.T) {
-	libraryPath := os.Getenv("NEEDLE_TEST_LIBRARY")
+	libraryPath := os.Getenv("CACTUS_TEST_LIBRARY")
 	if libraryPath == "" {
-		t.Skip("NEEDLE_TEST_LIBRARY is not set")
+		t.Skip("CACTUS_TEST_LIBRARY is not set")
 	}
 	agent, err := New(context.Background(), Config{LibraryPath: libraryPath})
 	if err != nil {
@@ -81,8 +81,8 @@ func TestNativeEngine(t *testing.T) {
 }
 
 func TestNativeGenerations(t *testing.T) {
-	if os.Getenv("NEEDLE_TEST_NATIVE") != "1" {
-		t.Skip("set NEEDLE_TEST_NATIVE=1 to test both generations in one process")
+	if os.Getenv("CACTUS_TEST_NATIVE") != "1" {
+		t.Skip("set CACTUS_TEST_NATIVE=1 to test both generations in one process")
 	}
 	ctx := context.Background()
 	var agents []*Agent
@@ -135,8 +135,8 @@ func TestNativeGenerations(t *testing.T) {
 }
 
 func TestNativeEngineDiagnostics(t *testing.T) {
-	if os.Getenv("NEEDLE_TEST_NATIVE") != "1" {
-		t.Skip("set NEEDLE_TEST_NATIVE=1 to test native diagnostics")
+	if os.Getenv("CACTUS_TEST_NATIVE") != "1" {
+		t.Skip("set CACTUS_TEST_NATIVE=1 to test native diagnostics")
 	}
 	_, err := New(context.Background(), Config{System: strings.Repeat("long context ", 10000)})
 	if err == nil {

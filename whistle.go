@@ -1,4 +1,4 @@
-package needle
+package cactus
 
 import (
 	"context"
@@ -74,7 +74,7 @@ func NewWhistle(ctx context.Context, config WhistleConfig) (*Whistle, error) {
 		size = DefaultSpeechBufferSize
 	}
 	if size < 2 || size > math.MaxInt32 {
-		return nil, fmt.Errorf("needle: invalid buffer size %d", size)
+		return nil, fmt.Errorf("cactus: invalid buffer size %d", size)
 	}
 	weightsPath := config.WeightsPath
 	if weightsPath == "" {
@@ -86,7 +86,7 @@ func NewWhistle(ctx context.Context, config WhistleConfig) (*Whistle, error) {
 	}
 	weightsPath, err := filepath.Abs(weightsPath)
 	if err != nil {
-		return nil, fmt.Errorf("needle: resolve speech weights path: %w", err)
+		return nil, fmt.Errorf("cactus: resolve speech weights path: %w", err)
 	}
 	libraryPath, err := resolveLibraryPath(ctx, Config{Generation: 3, LibraryPath: config.LibraryPath, CacheDir: config.CacheDir})
 	if err != nil {
@@ -124,10 +124,10 @@ func (w *Whistle) bindLocked() error {
 	}
 	blob, err := os.ReadFile(w.weightsPath)
 	if err != nil {
-		return fmt.Errorf("needle: read speech weights: %w", err)
+		return fmt.Errorf("cactus: read speech weights: %w", err)
 	}
 	if weightsKind(blob) != modelSpeech {
-		return errors.New("needle: weights are not a recognized speech model")
+		return errors.New("cactus: weights are not a recognized speech model")
 	}
 	if code := api.load(blob, uint64(len(blob))); code < 0 {
 		w.runtime.speechWeights = ""
@@ -183,7 +183,7 @@ func (w *Whistle) Transcribe(ctx context.Context, pcm []float32, options AudioOp
 	}
 	var transcript Transcript
 	if err := json.Unmarshal(data, &transcript); err != nil {
-		return Transcript{}, fmt.Errorf("needle: decode transcript: %w", err)
+		return Transcript{}, fmt.Errorf("cactus: decode transcript: %w", err)
 	}
 	return transcript, nil
 }
@@ -197,13 +197,13 @@ func (w *Whistle) Complete(ctx context.Context, textAgent *Agent, pcm []float32,
 	}
 	a := textAgent
 	if a == nil || a.generation != 3 || a.runtime != w.runtime {
-		return Response{}, errors.New("needle: audio completion requires a Needle 3 agent sharing the speech engine")
+		return Response{}, errors.New("cactus: audio completion requires a Needle 3 agent sharing the speech engine")
 	}
 	if maxNewTokens == 0 {
 		maxNewTokens = DefaultMaxNewTokens
 	}
 	if maxNewTokens < 1 || maxNewTokens > math.MaxInt32 {
-		return Response{}, fmt.Errorf("needle: invalid max new tokens %d", maxNewTokens)
+		return Response{}, fmt.Errorf("cactus: invalid max new tokens %d", maxNewTokens)
 	}
 	language, keywords, timestamps, err := prepareAudio(pcm, options)
 	if err != nil {
@@ -244,11 +244,11 @@ func (w *Whistle) reserve(samples int) {
 
 func checkPCM(pcm []float32) error {
 	if len(pcm) > math.MaxInt32 {
-		return fmt.Errorf("needle: audio has %d samples; want at most %d", len(pcm), math.MaxInt32)
+		return fmt.Errorf("cactus: audio has %d samples; want at most %d", len(pcm), math.MaxInt32)
 	}
 	for i, sample := range pcm {
 		if sample != sample || sample < -1 || sample > 1 {
-			return fmt.Errorf("needle: invalid PCM sample at index %d; want finite values in [-1, 1]", i)
+			return fmt.Errorf("cactus: invalid PCM sample at index %d; want finite values in [-1, 1]", i)
 		}
 	}
 	return nil
@@ -261,7 +261,7 @@ func prepareAudio(pcm []float32, options AudioOptions) ([]byte, []byte, int32, e
 	switch options.Language {
 	case "", "en", "de", "fr", "es", "it", "nl", "pl":
 	default:
-		return nil, nil, 0, fmt.Errorf("needle: unsupported speech language %q", options.Language)
+		return nil, nil, 0, fmt.Errorf("cactus: unsupported speech language %q", options.Language)
 	}
 	language, err := cString("speech language", options.Language, true)
 	if err != nil {

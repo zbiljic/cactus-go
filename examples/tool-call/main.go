@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"log"
 
-	needle "github.com/zbiljic/needle-go"
+	"github.com/zbiljic/cactus-go"
 )
 
 type weatherArguments struct {
@@ -22,8 +22,8 @@ type weatherResult struct {
 
 func main() {
 	ctx := context.Background()
-	agent, err := needle.New(ctx, needle.Config{
-		Tools: []needle.Tool{weatherTool()},
+	agent, err := cactus.New(ctx, cactus.Config{
+		Tools: []cactus.Tool{weatherTool()},
 	})
 	if err != nil {
 		log.Fatal(err)
@@ -32,8 +32,8 @@ func main() {
 	response, err := agent.Run(
 		ctx,
 		"What's the weather like in Lagos right now?",
-		needle.DefaultMaxSteps,
-		needle.DefaultMaxNewTokens,
+		cactus.DefaultMaxSteps,
+		cactus.DefaultMaxNewTokens,
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -49,8 +49,8 @@ func main() {
 	}
 }
 
-func weatherTool() needle.Tool {
-	return needle.NewTool(
+func weatherTool() cactus.Tool {
+	return cactus.NewTool(
 		"get_weather",
 		"Get the current weather for a city.",
 		func(_ context.Context, arguments weatherArguments) (weatherResult, error) {

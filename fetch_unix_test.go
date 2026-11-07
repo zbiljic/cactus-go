@@ -1,6 +1,6 @@
 //go:build darwin || linux
 
-package needle
+package cactus
 
 import (
 	"path/filepath"

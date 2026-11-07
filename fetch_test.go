@@ -1,4 +1,4 @@
-package needle
+package cactus
 
 import (
 	"archive/zip"
@@ -183,7 +183,7 @@ func TestVerifiedCacheReuse(t *testing.T) {
 				options := FetchOptions{Generation: generation, Platform: platform, CacheDir: override, Client: client}
 				directory := override
 				if directory == "" {
-					directory = filepath.Join(home, ".cache", "cactus-needle", release.version, string(resolved))
+					directory = filepath.Join(home, ".cache", "cactus-go", release.version, string(resolved))
 				}
 				if err := os.MkdirAll(directory, 0o755); err != nil {
 					t.Fatal(err)
@@ -305,8 +305,8 @@ func TestArtifactURLPinsRevision(t *testing.T) {
 }
 
 func TestPinnedEngineArtifacts(t *testing.T) {
-	if os.Getenv("NEEDLE_TEST_ARTIFACTS") != "1" {
-		t.Skip("set NEEDLE_TEST_ARTIFACTS=1 to verify pinned release artifacts")
+	if os.Getenv("CACTUS_TEST_ARTIFACTS") != "1" {
+		t.Skip("set CACTUS_TEST_ARTIFACTS=1 to verify pinned release artifacts")
 	}
 	for _, generation := range []int{2, 3} {
 		cacheDir := t.TempDir()

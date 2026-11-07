@@ -1,5 +1,6 @@
-// Package needle provides Go access to the Needle tool-calling model.
-package needle
+// Package cactus provides Go access to the Cactus on-device models: Needle
+// tool calling and Whistle speech.
+package cactus
 
 import (
 	"context"

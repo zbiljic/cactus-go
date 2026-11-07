@@ -14,25 +14,25 @@ import (
 	"runtime/debug"
 	"strings"
 
-	needle "github.com/zbiljic/needle-go"
+	"github.com/zbiljic/cactus-go"
 )
 
 const maxInputSize = 8 << 20
 
 var version = "dev"
 
-// session is the subset of *needle.Agent the commands use, so tests can
+// session is the subset of *cactus.Agent the commands use, so tests can
 // substitute a fake.
 type session interface {
-	Complete(ctx context.Context, text string, maxNewTokens int) (needle.Response, error)
+	Complete(ctx context.Context, text string, maxNewTokens int) (cactus.Response, error)
 	Reset(ctx context.Context) error
 }
 
 type dependencies struct {
-	newAgent        func(context.Context, needle.Config) (session, error)
-	fetchEngine     func(context.Context, needle.FetchOptions) (string, error)
-	cachedEngine    func(needle.FetchOptions) (string, error)
-	currentPlatform func() (needle.Platform, error)
+	newAgent        func(context.Context, cactus.Config) (session, error)
+	fetchEngine     func(context.Context, cactus.FetchOptions) (string, error)
+	cachedEngine    func(cactus.FetchOptions) (string, error)
+	currentPlatform func() (cactus.Platform, error)
 }
 
 type application struct {
@@ -59,16 +59,16 @@ func main() {
 		stderr:      os.Stderr,
 		interactive: interactive,
 		deps: dependencies{
-			newAgent: func(ctx context.Context, config needle.Config) (session, error) {
-				agent, err := needle.New(ctx, config)
+			newAgent: func(ctx context.Context, config cactus.Config) (session, error) {
+				agent, err := cactus.New(ctx, config)
 				if err != nil {
 					return nil, err
 				}
 				return agent, nil
 			},
-			fetchEngine:     needle.FetchEngine,
-			cachedEngine:    needle.CachedEngine,
-			currentPlatform: needle.CurrentPlatform,
+			fetchEngine:     cactus.FetchEngine,
+			cachedEngine:    cactus.CachedEngine,
+			currentPlatform: cactus.CurrentPlatform,
 		},
 	}
 	os.Exit(app.run(context.Background(), os.Args[1:]))
@@ -107,7 +107,7 @@ func (a *application) run(ctx context.Context, args []string) int {
 	if errors.Is(err, flag.ErrHelp) {
 		return 0
 	}
-	fmt.Fprintf(a.stderr, "needlez: %v\n", err)
+	fmt.Fprintf(a.stderr, "cactusz: %v\n", err)
 	var usage usageError
 	if errors.As(err, &usage) {
 		return 2
@@ -116,7 +116,7 @@ func (a *application) run(ctx context.Context, args []string) int {
 }
 
 func (a *application) printUsage() {
-	fmt.Fprint(a.stderr, `Usage: needlez <command> [options]
+	fmt.Fprint(a.stderr, `Usage: cactusz <command> [options]
 
 Commands:
   fetch       Download and verify an engine and its required base weights
@@ -127,7 +127,7 @@ Commands:
   doctor      Diagnose the local engine installation
   version     Print CLI, engine, and platform versions
 
-Run "needlez <command> -h" for command-specific options.
+Run "cactusz <command> -h" for command-specific options.
 `)
 }
 
@@ -136,7 +136,7 @@ func (a *application) flagSet(description, synopsis string) *flag.FlagSet {
 	flags := flag.NewFlagSet(command, flag.ContinueOnError)
 	flags.SetOutput(a.stderr)
 	flags.Usage = func() {
-		fmt.Fprintf(a.stderr, "Usage: needlez %s\n\n%s\n\nOptions:\n", synopsis, description)
+		fmt.Fprintf(a.stderr, "Usage: cactusz %s\n\n%s\n\nOptions:\n", synopsis, description)
 		flags.PrintDefaults()
 	}
 	return flags
@@ -157,7 +157,7 @@ func (a *application) runFetch(ctx context.Context, args []string) error {
 		"Download the engine and required base weights for a desktop platform.",
 		"fetch [options]",
 	)
-	generation := flags.Int("generation", needle.DefaultGeneration, "model generation (2 or 3)")
+	generation := flags.Int("generation", cactus.DefaultGeneration, "model generation (2 or 3)")
 	platform := flags.String("platform", "", "target platform; empty selects the current platform")
 	cacheDir := flags.String("cache", "", "engine cache directory")
 	list := flags.Bool("list", false, "list supported platforms without downloading")
@@ -167,18 +167,18 @@ func (a *application) runFetch(ctx context.Context, args []string) error {
 	if flags.NArg() != 0 {
 		return usageError{errors.New("fetch does not accept positional arguments")}
 	}
-	if _, err := needle.EngineVersionFor(*generation); err != nil {
+	if _, err := cactus.EngineVersionFor(*generation); err != nil {
 		return usageError{err}
 	}
 	if *list {
-		for _, supported := range needle.SupportedPlatforms() {
+		for _, supported := range cactus.SupportedPlatforms() {
 			fmt.Fprintln(a.stdout, supported)
 		}
 		return nil
 	}
-	path, err := a.deps.fetchEngine(ctx, needle.FetchOptions{
+	path, err := a.deps.fetchEngine(ctx, cactus.FetchOptions{
 		Generation: *generation,
-		Platform:   needle.Platform(*platform),
+		Platform:   cactus.Platform(*platform),
 		CacheDir:   *cacheDir,
 	})
 	if err != nil {
@@ -203,7 +203,7 @@ type agentOptions struct {
 
 func addAgentFlags(flags *flag.FlagSet, options *agentOptions) {
 	flags.IntVar(
-		&options.generation, "generation", needle.DefaultGeneration,
+		&options.generation, "generation", cactus.DefaultGeneration,
 		"model generation (2 or 3); custom weights take precedence",
 	)
 	flags.StringVar(&options.libraryPath, "library", "", "path to libneedle shared library")
@@ -214,37 +214,37 @@ func addAgentFlags(flags *flag.FlagSet, options *agentOptions) {
 	flags.StringVar(&options.systemFile, "system-file", "", "path to session facts")
 	flags.StringVar(&options.toolIndex, "tool-index", "", "path to persistent tool embeddings")
 	flags.IntVar(&options.bufferSize, "buffer-size", 0, "native response buffer size")
-	flags.IntVar(&options.maxTokens, "max-tokens", needle.DefaultMaxNewTokens, "response token limit")
+	flags.IntVar(&options.maxTokens, "max-tokens", cactus.DefaultMaxNewTokens, "response token limit")
 }
 
-func (a *application) agentConfig(options agentOptions) (needle.Config, error) {
+func (a *application) agentConfig(options agentOptions) (cactus.Config, error) {
 	if options.system != "" && options.systemFile != "" {
-		return needle.Config{}, errors.New("--system and --system-file are mutually exclusive")
+		return cactus.Config{}, errors.New("--system and --system-file are mutually exclusive")
 	}
 	system := options.system
 	if options.systemFile != "" {
 		data, err := readFileLimited(options.systemFile, maxInputSize)
 		if err != nil {
-			return needle.Config{}, fmt.Errorf("read system file: %w", err)
+			return cactus.Config{}, fmt.Errorf("read system file: %w", err)
 		}
 		system = string(data)
 	}
-	var tools []needle.Tool
+	var tools []cactus.Tool
 	if options.toolsPath != "" {
 		data, err := readFileLimited(options.toolsPath, maxInputSize)
 		if err != nil {
-			return needle.Config{}, fmt.Errorf("read tools: %w", err)
+			return cactus.Config{}, fmt.Errorf("read tools: %w", err)
 		}
-		var schemas []needle.ToolSchema
+		var schemas []cactus.ToolSchema
 		if err := json.Unmarshal(data, &schemas); err != nil {
-			return needle.Config{}, fmt.Errorf("decode tools: %w", err)
+			return cactus.Config{}, fmt.Errorf("decode tools: %w", err)
 		}
-		tools = make([]needle.Tool, 0, len(schemas))
+		tools = make([]cactus.Tool, 0, len(schemas))
 		for _, schema := range schemas {
-			tools = append(tools, needle.Tool{Schema: schema})
+			tools = append(tools, cactus.Tool{Schema: schema})
 		}
 	}
-	return needle.Config{
+	return cactus.Config{
 		Generation:    options.generation,
 		Tools:         tools,
 		System:        system,
@@ -323,7 +323,7 @@ func (a *application) runREPL(ctx context.Context, args []string) error {
 	scanner.Buffer(make([]byte, 64*1024), maxInputSize)
 	for {
 		if a.interactive {
-			fmt.Fprint(a.stderr, "needlez> ")
+			fmt.Fprint(a.stderr, "cactusz> ")
 		}
 		if !scanner.Scan() {
 			break
@@ -337,7 +337,7 @@ func (a *application) runREPL(ctx context.Context, args []string) error {
 			return nil
 		case ".help":
 			fmt.Fprintln(a.stderr, ".reset  rewind the conversation")
-			fmt.Fprintln(a.stderr, ".quit   exit needlez")
+			fmt.Fprintln(a.stderr, ".quit   exit cactusz")
 			continue
 		case ".reset":
 			if err := agent.Reset(ctx); err != nil {
@@ -363,7 +363,7 @@ func (a *application) runREPL(ctx context.Context, args []string) error {
 func (a *application) runDoctor(ctx context.Context, args []string) error {
 	flags := a.flagSet("Check local engine discovery, loading, and initialization.", "doctor [options]")
 	generation := flags.Int(
-		"generation", needle.DefaultGeneration,
+		"generation", cactus.DefaultGeneration,
 		"model generation (2 or 3); custom weights take precedence",
 	)
 	libraryPath := flags.String("library", "", "path to libneedle shared library")
@@ -380,12 +380,12 @@ func (a *application) runDoctor(ctx context.Context, args []string) error {
 	}
 	if *weightsPath != "" {
 		var err error
-		*generation, err = needle.WeightsGeneration(*weightsPath)
+		*generation, err = cactus.WeightsGeneration(*weightsPath)
 		if err != nil {
 			return err
 		}
 	}
-	engineVersion, err := needle.EngineVersionFor(*generation)
+	engineVersion, err := cactus.EngineVersionFor(*generation)
 	if err != nil {
 		return usageError{err}
 	}
@@ -400,11 +400,11 @@ func (a *application) runDoctor(ctx context.Context, args []string) error {
 	path, source, err := a.findLibrary(*libraryPath, *cacheDir, *generation)
 	if err != nil {
 		fmt.Fprintln(a.stdout, "✗ Library: not found")
-		return fmt.Errorf("%w; run `needlez fetch --generation %d`", err, *generation)
+		return fmt.Errorf("%w; run `cactusz fetch --generation %d`", err, *generation)
 	}
 	fmt.Fprintf(a.stdout, "✓ Library: %s (%s)\n", path, source)
 
-	agent, err := a.deps.newAgent(ctx, needle.Config{
+	agent, err := a.deps.newAgent(ctx, cactus.Config{
 		Generation:  *generation,
 		CacheDir:    *cacheDir,
 		LibraryPath: path,
@@ -446,7 +446,7 @@ func (a *application) findLibrary(
 	generation int,
 ) (string, string, error) {
 	if generation == 0 {
-		generation = needle.DefaultGeneration
+		generation = cactus.DefaultGeneration
 	}
 	path, source := configured, "--library"
 	if path == "" {
@@ -454,10 +454,10 @@ func (a *application) findLibrary(
 		path = os.Getenv(source)
 	}
 	if path == "" && generation == 2 {
-		path, source = os.Getenv(needle.EnvLibraryPath), needle.EnvLibraryPath
+		path, source = os.Getenv(cactus.EnvLibraryPath), cactus.EnvLibraryPath
 	}
 	if path == "" {
-		cached, err := a.deps.cachedEngine(needle.FetchOptions{
+		cached, err := a.deps.cachedEngine(cactus.FetchOptions{
 			Generation: generation,
 			CacheDir:   cacheDir,
 		})
@@ -482,22 +482,22 @@ func (a *application) findLibrary(
 
 func (a *application) runVersion(args []string) error {
 	flags := a.flagSet("Print version information.", "version")
-	generation := flags.Int("generation", needle.DefaultGeneration, "model generation (2 or 3)")
+	generation := flags.Int("generation", cactus.DefaultGeneration, "model generation (2 or 3)")
 	if err := parseFlags(flags, args); err != nil {
 		return err
 	}
 	if flags.NArg() != 0 {
 		return usageError{errors.New("version does not accept positional arguments")}
 	}
-	engineVersion, err := needle.EngineVersionFor(*generation)
+	engineVersion, err := cactus.EngineVersionFor(*generation)
 	if err != nil {
 		return usageError{err}
 	}
 	platform, err := a.deps.currentPlatform()
 	if err != nil {
-		platform = needle.Platform(runtime.GOOS + "-" + runtime.GOARCH + " (unsupported)")
+		platform = cactus.Platform(runtime.GOOS + "-" + runtime.GOARCH + " (unsupported)")
 	}
-	fmt.Fprintf(a.stdout, "needlez %s\n", effectiveVersion())
+	fmt.Fprintf(a.stdout, "cactusz %s\n", effectiveVersion())
 	fmt.Fprintf(a.stdout, "engine %s\n", engineVersion)
 	fmt.Fprintf(a.stdout, "platform %s\n", platform)
 	return nil

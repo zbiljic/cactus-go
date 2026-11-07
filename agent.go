@@ -1,4 +1,4 @@
-package needle
+package cactus
 
 import (
 	"bytes"
@@ -52,7 +52,7 @@ func New(ctx context.Context, config Config) (*Agent, error) {
 		}
 		prepared.weightsPath, err = filepath.Abs(prepared.weightsPath)
 		if err != nil {
-			return nil, fmt.Errorf("needle: resolve base weights path: %w", err)
+			return nil, fmt.Errorf("cactus: resolve base weights path: %w", err)
 		}
 	}
 	prepared.runtime = runtimes[prepared.generation]
@@ -86,10 +86,10 @@ func prepareAgent(config Config) (*Agent, error) {
 	seen := make(map[string]struct{}, len(config.Tools))
 	for _, tool := range config.Tools {
 		if tool.Schema.Name == "" {
-			return nil, errors.New("needle: tool name is empty")
+			return nil, errors.New("cactus: tool name is empty")
 		}
 		if _, exists := seen[tool.Schema.Name]; exists {
-			return nil, fmt.Errorf("needle: duplicate tool %q", tool.Schema.Name)
+			return nil, fmt.Errorf("cactus: duplicate tool %q", tool.Schema.Name)
 		}
 		seen[tool.Schema.Name] = struct{}{}
 		if tool.Schema.Parameters == nil {
@@ -106,7 +106,7 @@ func prepareAgent(config Config) (*Agent, error) {
 
 	toolsJSON, err := json.Marshal(schemas)
 	if err != nil {
-		return nil, fmt.Errorf("needle: encode tools: %w", err)
+		return nil, fmt.Errorf("cactus: encode tools: %w", err)
 	}
 	system, err := cString("system", config.System, false)
 	if err != nil {
@@ -125,7 +125,7 @@ func prepareAgent(config Config) (*Agent, error) {
 	if weightsPath != "" {
 		weightsPath, err = filepath.Abs(weightsPath)
 		if err != nil {
-			return nil, fmt.Errorf("needle: resolve weights path: %w", err)
+			return nil, fmt.Errorf("cactus: resolve weights path: %w", err)
 		}
 	}
 	bufferSize := config.BufferSize
@@ -133,7 +133,7 @@ func prepareAgent(config Config) (*Agent, error) {
 		bufferSize = DefaultBufferSize
 	}
 	if bufferSize < 2 || bufferSize > math.MaxInt32 {
-		return nil, fmt.Errorf("needle: invalid buffer size %d", bufferSize)
+		return nil, fmt.Errorf("cactus: invalid buffer size %d", bufferSize)
 	}
 
 	return &Agent{
@@ -165,7 +165,7 @@ func resolveLibraryPath(ctx context.Context, config Config) (string, error) {
 	if path != "" {
 		absolute, err := filepath.Abs(path)
 		if err != nil {
-			return "", fmt.Errorf("needle: resolve library path: %w", err)
+			return "", fmt.Errorf("cactus: resolve library path: %w", err)
 		}
 		return absolute, nil
 	}
@@ -188,7 +188,7 @@ func (a *Agent) complete(ctx context.Context, text string, maxNewTokens int, res
 		maxNewTokens = DefaultMaxNewTokens
 	}
 	if maxNewTokens < 1 || maxNewTokens > math.MaxInt32 {
-		return Response{}, fmt.Errorf("needle: invalid max new tokens %d", maxNewTokens)
+		return Response{}, fmt.Errorf("cactus: invalid max new tokens %d", maxNewTokens)
 	}
 	input, err := cString("input", text, false)
 	if err != nil {
@@ -224,10 +224,10 @@ func (a *Agent) decodeResponse(code int32) (Response, error) {
 	}
 	var response Response
 	if err := json.Unmarshal(data, &response); err != nil {
-		return Response{}, fmt.Errorf("needle: decode response: %w", err)
+		return Response{}, fmt.Errorf("cactus: decode response: %w", err)
 	}
 	if response.Type == "" {
-		return Response{}, errors.New("needle: response type is empty")
+		return Response{}, errors.New("cactus: response type is empty")
 	}
 	if !a.calibrated {
 		response.Confidence = nil
@@ -247,7 +247,7 @@ func nativeOutput(api *nativeAPI, operation string, code int32, buffer []byte) (
 	}
 	end := bytes.IndexByte(buffer, 0)
 	if end < 0 {
-		return nil, errors.New("needle: engine response exceeds buffer")
+		return nil, errors.New("cactus: engine response exceeds buffer")
 	}
 	return buffer[:end], nil
 }
@@ -262,7 +262,7 @@ func (a *Agent) Run(ctx context.Context, query string, maxSteps, maxNewTokens in
 		maxSteps = DefaultMaxSteps
 	}
 	if maxSteps < 1 {
-		return Response{}, fmt.Errorf("needle: invalid max steps %d", maxSteps)
+		return Response{}, fmt.Errorf("cactus: invalid max steps %d", maxSteps)
 	}
 
 	response, err := a.Complete(ctx, query, maxNewTokens)
@@ -272,7 +272,7 @@ func (a *Agent) Run(ctx context.Context, query string, maxSteps, maxNewTokens in
 	executed := make([]any, 0)
 	if err := ValidateResponse(response); err != nil {
 		response.Results = executed
-		return response, fmt.Errorf("needle: run: %w", err)
+		return response, fmt.Errorf("cactus: run: %w", err)
 	}
 	for range maxSteps {
 		if response.Type != ResponseCall || len(response.FunctionCalls) == 0 {
@@ -287,7 +287,7 @@ func (a *Agent) Run(ctx context.Context, query string, maxSteps, maxNewTokens in
 		}
 		payload, err := json.Marshal(results)
 		if err != nil {
-			return Response{}, fmt.Errorf("needle: encode tool results: %w", err)
+			return Response{}, fmt.Errorf("cactus: encode tool results: %w", err)
 		}
 		response, err = a.complete(ctx, string(payload), maxNewTokens, false)
 		if err != nil {
@@ -295,7 +295,7 @@ func (a *Agent) Run(ctx context.Context, query string, maxSteps, maxNewTokens in
 		}
 		if err := ValidateResponse(response); err != nil {
 			response.Results = executed
-			return response, fmt.Errorf("needle: run: %w", err)
+			return response, fmt.Errorf("cactus: run: %w", err)
 		}
 	}
 	response.Results = executed
@@ -351,7 +351,7 @@ func (a *Agent) execute(ctx context.Context, call FunctionCall) any {
 
 func cString(name, value string, nullable bool) ([]byte, error) {
 	if strings.IndexByte(value, 0) >= 0 {
-		return nil, fmt.Errorf("needle: %s contains NUL", name)
+		return nil, fmt.Errorf("cactus: %s contains NUL", name)
 	}
 	if nullable && value == "" {
 		return nil, nil

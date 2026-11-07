@@ -8,11 +8,11 @@ transcription does not require text weights.
 ## Transcription
 
 ```go
-speech, err := needle.NewWhistle(ctx, needle.WhistleConfig{})
+speech, err := cactus.NewWhistle(ctx, cactus.WhistleConfig{})
 if err != nil {
 	log.Fatal(err)
 }
-transcript, err := speech.Transcribe(ctx, pcm, needle.AudioOptions{
+transcript, err := speech.Transcribe(ctx, pcm, cactus.AudioOptions{
 	Language:       "en",
 	Keywords:       []string{"Paris", "Ada"},
 	WordTimestamps: true,
@@ -38,7 +38,7 @@ with times from the start of the stream, plus the unconfirmed `Pending` tail.
 `Stop` commits the tail and ends the stream.
 
 ```go
-live, err := speech.Stream(needle.AudioOptions{Language: "en"})
+live, err := speech.Stream(cactus.AudioOptions{Language: "en"})
 if err != nil {
 	log.Fatal(err)
 }
@@ -65,8 +65,8 @@ To transcribe and produce tool calls in one native turn, pass a Needle 3 agent
 created by `New`:
 
 ```go
-response, err := speech.Complete(ctx, agent, pcm, needle.AudioOptions{},
-	needle.DefaultMaxNewTokens)
+response, err := speech.Complete(ctx, agent, pcm, cactus.AudioOptions{},
+	cactus.DefaultMaxNewTokens)
 ```
 
 The response includes optional `AudioText`, `AudioLanguage`, `AudioWords`,
@@ -92,7 +92,7 @@ version-1 audio manifest; a future format requires a library update.
 
 ## Offline setup
 
-`FetchWhistle(ctx, needle.FetchOptions{CacheDir: cacheDir})` prepares the engine
+`FetchWhistle(ctx, cactus.FetchOptions{CacheDir: cacheDir})` prepares the engine
 and speech weights for offline use, without fetching text weights. `Platform`
 selects the target desktop platform; `Generation` must be zero or 3. Preserve the
 `.sha256` markers and use the same cache directory with `NewWhistle`. For audio

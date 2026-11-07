@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 
-	needle "github.com/zbiljic/needle-go"
+	"github.com/zbiljic/cactus-go"
 )
 
 type invoice struct {
@@ -16,8 +16,8 @@ type invoice struct {
 
 func main() {
 	ctx := context.Background()
-	agent, err := needle.New(ctx, needle.Config{
-		Tools: []needle.Tool{{Schema: needle.SchemaFor[invoice](
+	agent, err := cactus.New(ctx, cactus.Config{
+		Tools: []cactus.Tool{{Schema: cactus.SchemaFor[invoice](
 			"invoice",
 			"A purchase invoice extracted from text.",
 		)}},
@@ -29,15 +29,15 @@ func main() {
 	response, err := agent.Complete(
 		ctx,
 		"Invoice from Acme Corp, total 1200, due 2026-09-01.",
-		needle.DefaultMaxNewTokens,
+		cactus.DefaultMaxNewTokens,
 	)
 	if err != nil {
 		log.Fatal(err)
 	}
-	if err := needle.ValidateResponse(response); err != nil {
+	if err := cactus.ValidateResponse(response); err != nil {
 		log.Fatal(err)
 	}
-	extracted, err := needle.Extract[invoice](response)
+	extracted, err := cactus.Extract[invoice](response)
 	if err != nil {
 		log.Fatal(err)
 	}

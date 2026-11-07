@@ -1,4 +1,4 @@
-package needle
+package cactus
 
 import (
 	"context"
@@ -36,7 +36,7 @@ func TestSentinelErrors(t *testing.T) {
 	if !errors.As(err, &native) || native.Operation != "complete" || native.Code != -3 || native.Detail != "native failure" {
 		t.Fatalf("Complete() error = %#v", err)
 	}
-	if err.Error() != "needle: complete failed with code -3: native failure" {
+	if err.Error() != "cactus: complete failed with code -3: native failure" {
 		t.Fatalf("Complete() error text = %q", err.Error())
 	}
 

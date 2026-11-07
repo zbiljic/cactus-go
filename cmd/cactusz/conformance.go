@@ -9,12 +9,12 @@ import (
 	"reflect"
 	"strings"
 
-	needle "github.com/zbiljic/needle-go"
+	"github.com/zbiljic/cactus-go"
 )
 
 type conformanceSuite struct {
-	newAgent  func(context.Context, needle.Config) (session, error)
-	config    needle.Config
+	newAgent  func(context.Context, cactus.Config) (session, error)
+	config    cactus.Config
 	maxTokens int
 }
 
@@ -36,7 +36,7 @@ type conformanceInvoice struct {
 
 func (a *application) runTest(ctx context.Context, args []string) error {
 	flags := a.flagSet("Run behavioral conformance checks against the native model.", "test [options]")
-	generation := flags.Int("generation", needle.DefaultGeneration, "model generation (2 or 3)")
+	generation := flags.Int("generation", cactus.DefaultGeneration, "model generation (2 or 3)")
 	libraryPath := flags.String("library", "", "path to libneedle shared library")
 	cacheDir := flags.String("cache", "", "engine cache directory")
 	bufferSize := flags.Int("buffer-size", 0, "native response buffer size")
@@ -46,19 +46,19 @@ func (a *application) runTest(ctx context.Context, args []string) error {
 	if flags.NArg() != 0 {
 		return usageError{errors.New("test does not accept positional arguments")}
 	}
-	if _, err := needle.EngineVersionFor(*generation); err != nil {
+	if _, err := cactus.EngineVersionFor(*generation); err != nil {
 		return usageError{err}
 	}
 
 	suite := conformanceSuite{
 		newAgent: a.deps.newAgent,
-		config: needle.Config{
+		config: cactus.Config{
 			Generation:  *generation,
 			LibraryPath: *libraryPath,
 			CacheDir:    *cacheDir,
 			BufferSize:  *bufferSize,
 		},
-		maxTokens: needle.DefaultMaxNewTokens,
+		maxTokens: cactus.DefaultMaxNewTokens,
 	}
 	checks := suite.checks()
 	failures := 0
@@ -102,14 +102,14 @@ func (s conformanceSuite) checkNoTools(ctx context.Context) error {
 	if err := validEnvelope(response); err != nil {
 		return err
 	}
-	if response.Type != needle.ResponseCall || len(response.FunctionCalls) != 0 {
+	if response.Type != cactus.ResponseCall || len(response.FunctionCalls) != 0 {
 		return fmt.Errorf("got type %q with %d calls, want empty call", response.Type, len(response.FunctionCalls))
 	}
 	return nil
 }
 
 func (s conformanceSuite) checkToolSelection(ctx context.Context) error {
-	agent, err := s.agent(ctx, []needle.Tool{conformanceWeatherTool()}, "")
+	agent, err := s.agent(ctx, []cactus.Tool{conformanceWeatherTool()}, "")
 	if err != nil {
 		return err
 	}
@@ -128,7 +128,7 @@ func (s conformanceSuite) checkToolSelection(ctx context.Context) error {
 }
 
 func (s conformanceSuite) checkToolResult(ctx context.Context) error {
-	agent, err := s.agent(ctx, []needle.Tool{conformanceWeatherTool()}, "")
+	agent, err := s.agent(ctx, []cactus.Tool{conformanceWeatherTool()}, "")
 	if err != nil {
 		return err
 	}
@@ -150,14 +150,14 @@ func (s conformanceSuite) checkToolResult(ctx context.Context) error {
 	if err := validEnvelope(response); err != nil {
 		return err
 	}
-	if response.Type != needle.ResponseRespond {
-		return fmt.Errorf("result response type = %q, want %q", response.Type, needle.ResponseRespond)
+	if response.Type != cactus.ResponseRespond {
+		return fmt.Errorf("result response type = %q, want %q", response.Type, cactus.ResponseRespond)
 	}
 	return nil
 }
 
 func (s conformanceSuite) checkReset(ctx context.Context) error {
-	agent, err := s.agent(ctx, []needle.Tool{conformanceWeatherTool()}, "")
+	agent, err := s.agent(ctx, []cactus.Tool{conformanceWeatherTool()}, "")
 	if err != nil {
 		return err
 	}
@@ -193,7 +193,7 @@ func (s conformanceSuite) checkReset(ctx context.Context) error {
 func (s conformanceSuite) checkSystemFacts(ctx context.Context) error {
 	agent, err := s.agent(
 		ctx,
-		[]needle.Tool{conformanceWeatherTool()},
+		[]cactus.Tool{conformanceWeatherTool()},
 		"Today is 2026-07-30 and the user is in London.",
 	)
 	if err != nil {
@@ -208,11 +208,11 @@ func (s conformanceSuite) checkSystemFacts(ctx context.Context) error {
 }
 
 func (s conformanceSuite) checkExtraction(ctx context.Context) error {
-	schema := needle.SchemaFor[conformanceInvoice](
+	schema := cactus.SchemaFor[conformanceInvoice](
 		"invoice",
 		"A purchase invoice extracted from text.",
 	)
-	agent, err := s.agent(ctx, []needle.Tool{{Schema: schema}}, "")
+	agent, err := s.agent(ctx, []cactus.Tool{{Schema: schema}}, "")
 	if err != nil {
 		return err
 	}
@@ -224,7 +224,7 @@ func (s conformanceSuite) checkExtraction(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("complete: %w", err)
 	}
-	extracted, err := needle.Extract[conformanceInvoice](response)
+	extracted, err := cactus.Extract[conformanceInvoice](response)
 	if err != nil {
 		return err
 	}
@@ -238,7 +238,7 @@ func (s conformanceSuite) checkExtraction(ctx context.Context) error {
 
 func (s conformanceSuite) agent(
 	ctx context.Context,
-	tools []needle.Tool,
+	tools []cactus.Tool,
 	system string,
 ) (session, error) {
 	config := s.config
@@ -251,14 +251,14 @@ func (s conformanceSuite) agent(
 	return agent, nil
 }
 
-func conformanceWeatherTool() needle.Tool {
-	return needle.Tool{Schema: needle.SchemaFor[conformanceWeatherArguments](
+func conformanceWeatherTool() cactus.Tool {
+	return cactus.Tool{Schema: cactus.SchemaFor[conformanceWeatherArguments](
 		"get_weather",
 		"Current or forecast weather for a city.",
 	)}
 }
 
-func weatherCall(response needle.Response) (conformanceWeatherArguments, error) {
+func weatherCall(response cactus.Response) (conformanceWeatherArguments, error) {
 	call, err := singleCall(response, "get_weather")
 	if err != nil {
 		return conformanceWeatherArguments{}, err
@@ -270,12 +270,12 @@ func weatherCall(response needle.Response) (conformanceWeatherArguments, error) 
 	return arguments, nil
 }
 
-func singleCall(response needle.Response, name string) (needle.FunctionCall, error) {
+func singleCall(response cactus.Response, name string) (cactus.FunctionCall, error) {
 	if err := validEnvelope(response); err != nil {
-		return needle.FunctionCall{}, err
+		return cactus.FunctionCall{}, err
 	}
-	if response.Type != needle.ResponseCall || len(response.FunctionCalls) != 1 {
-		return needle.FunctionCall{}, fmt.Errorf(
+	if response.Type != cactus.ResponseCall || len(response.FunctionCalls) != 1 {
+		return cactus.FunctionCall{}, fmt.Errorf(
 			"got type %q with %d calls, want one %q call",
 			response.Type,
 			len(response.FunctionCalls),
@@ -284,15 +284,15 @@ func singleCall(response needle.Response, name string) (needle.FunctionCall, err
 	}
 	call := response.FunctionCalls[0]
 	if call.Name != name {
-		return needle.FunctionCall{}, fmt.Errorf("call name = %q, want %q", call.Name, name)
+		return cactus.FunctionCall{}, fmt.Errorf("call name = %q, want %q", call.Name, name)
 	}
 	if !json.Valid(call.Arguments) {
-		return needle.FunctionCall{}, errors.New("call arguments are not valid JSON")
+		return cactus.FunctionCall{}, errors.New("call arguments are not valid JSON")
 	}
 	return call, nil
 }
 
-func validEnvelope(response needle.Response) error {
+func validEnvelope(response cactus.Response) error {
 	if !response.Success {
 		if response.Error != nil {
 			return fmt.Errorf("response failed: %s", *response.Error)

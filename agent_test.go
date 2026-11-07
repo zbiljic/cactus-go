@@ -1,4 +1,4 @@
-package needle
+package cactus
 
 import (
 	"context"
@@ -329,38 +329,38 @@ func TestCompleteNativeErrorDetail(t *testing.T) {
 			name:      "ordinary diagnostic",
 			code:      -3,
 			response:  []byte("  native failure  "),
-			wantError: "needle: complete failed with code -3: native failure",
+			wantError: "cactus: complete failed with code -3: native failure",
 		},
 		{
 			name:      "detail stops at NUL",
 			code:      -4,
 			response:  []byte("native failure\x00ignored"),
-			wantError: "needle: complete failed with code -4: native failure",
+			wantError: "cactus: complete failed with code -4: native failure",
 		},
 		{
 			name:      "fully occupied buffer",
 			code:      -5,
 			response:  []byte("bounded"),
 			config:    Config{BufferSize: len("bounded")},
-			wantError: "needle: complete failed with code -5: bounded",
+			wantError: "cactus: complete failed with code -5: bounded",
 		},
 		{
 			name:      "empty detail",
 			code:      -6,
 			response:  []byte("\x00ignored"),
-			wantError: "needle: complete failed with code -6",
+			wantError: "cactus: complete failed with code -6",
 		},
 		{
 			name:      "whitespace detail",
 			code:      -7,
 			response:  []byte(" \t\n\x00ignored"),
-			wantError: "needle: complete failed with code -7",
+			wantError: "cactus: complete failed with code -7",
 		},
 		{
 			name:      "invalid UTF-8",
 			code:      -8,
 			response:  []byte("bad\xfftext"),
-			wantError: "needle: complete failed with code -8: bad�text",
+			wantError: "cactus: complete failed with code -8: bad�text",
 		},
 	}
 	for _, test := range tests {
@@ -386,7 +386,7 @@ func TestCompleteNativeErrorDetail(t *testing.T) {
 		}
 		fake.completeCode = -9
 		response, err = agent.Complete(context.Background(), "second", 1)
-		if err == nil || err.Error() != "needle: complete failed with code -9" {
+		if err == nil || err.Error() != "cactus: complete failed with code -9" {
 			t.Fatalf("second Complete() error = %v", err)
 		}
 		if !reflect.DeepEqual(response, Response{}) {
@@ -427,7 +427,7 @@ func TestNativeLastErrorDiagnostics(t *testing.T) {
 					runtime.active = nil
 					err = a.Reset(context.Background())
 				}
-				want := "needle: " + operation + " failed with code -7"
+				want := "cactus: " + operation + " failed with code -7"
 				if detail != "" {
 					want += ": native�detail"
 				} else if operation == "complete" {
@@ -696,7 +696,7 @@ func TestRunValidation(t *testing.T) {
 				context.Background(), "$1,200.00 and order ID 1200", test.maxSteps, 1,
 			)
 			if (test.wantError == "") != (err == nil) || err != nil &&
-				(!strings.Contains(err.Error(), "needle: run:") ||
+				(!strings.Contains(err.Error(), "cactus: run:") ||
 					!strings.Contains(err.Error(), test.wantError)) {
 				t.Fatalf("Run() error = %v, want %q", err, test.wantError)
 			}
@@ -817,43 +817,43 @@ func TestRejectWeightsGeneration(t *testing.T) {
 		{
 			name:      "missing",
 			missing:   true,
-			wantError: "needle: read weights:",
+			wantError: "cactus: read weights:",
 		},
 		{
 			name:      "empty",
 			blob:      []byte{},
-			wantError: "needle: weights file is empty",
+			wantError: "cactus: weights file is empty",
 		},
 		{
 			name:      "one header byte",
 			blob:      []byte{0x83},
-			wantError: "needle: weights header is truncated",
+			wantError: "cactus: weights header is truncated",
 		},
 		{
 			name:      "two header bytes",
 			blob:      []byte{0x83, 0x2a},
-			wantError: "needle: weights header is truncated",
+			wantError: "cactus: weights header is truncated",
 		},
 		{
 			name:      "three header bytes",
 			blob:      []byte{0x83, 0x2a, 0xe1},
-			wantError: "needle: weights header is truncated",
+			wantError: "cactus: weights header is truncated",
 		},
 		{
 			name:      "unknown",
 			blob:      []byte{0, 0, 0, 1},
-			wantError: "needle: unknown weights header 0x01000000",
+			wantError: "cactus: unknown weights header 0x01000000",
 		},
 		{
 			name:      "wrong byte order",
 			blob:      []byte{0x05, 0xe1, 0x2a, 0x83},
-			wantError: "needle: unknown weights header 0x832ae105",
+			wantError: "cactus: unknown weights header 0x832ae105",
 		},
 		{
 			name:      "load failure",
 			blob:      []byte{0x83, 0x2a, 0xe1, 0x05, 1},
 			loadCode:  -7,
-			wantError: "needle: load weights failed with code -7",
+			wantError: "cactus: load weights failed with code -7",
 			wantLoads: 1,
 		},
 	}

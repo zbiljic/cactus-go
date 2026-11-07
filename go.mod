@@ -1,4 +1,4 @@
-module github.com/zbiljic/needle-go
+module github.com/zbiljic/cactus-go
 
 go 1.25.0
 

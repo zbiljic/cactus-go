@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	needle "github.com/zbiljic/needle-go"
+	"github.com/zbiljic/cactus-go"
 )
 
 func TestParseEvaluationCase(t *testing.T) {
@@ -68,10 +68,10 @@ func TestParseEvaluationCaseErrors(t *testing.T) {
 func TestEvaluateResponse(t *testing.T) {
 	t.Parallel()
 
-	response := needle.Response{
-		Type:    needle.ResponseCall,
+	response := cactus.Response{
+		Type:    cactus.ResponseCall,
 		Success: true,
-		FunctionCalls: []needle.FunctionCall{
+		FunctionCalls: []cactus.FunctionCall{
 			{Name: "get_weather", Arguments: json.RawMessage(`{"city":"Paris"}`)},
 			{Name: "set_timer", Arguments: json.RawMessage(`{"minutes":10.0}`)},
 		},
@@ -91,7 +91,7 @@ func TestEvaluateResponse(t *testing.T) {
 		t.Fatalf("mismatched result = %#v", result)
 	}
 
-	result = evaluateResponse(needle.Response{Type: needle.ResponseRespond, Success: true}, nil)
+	result = evaluateResponse(cactus.Response{Type: cactus.ResponseRespond, Success: true}, nil)
 	if result.call || !result.name || !result.exact || result.actual != "(respond)" {
 		t.Fatalf("no-call result = %#v", result)
 	}
@@ -113,29 +113,29 @@ func TestEval(t *testing.T) {
 	}, "\n"))
 
 	confidence := 0.75
-	fake := &fakeAgent{responses: []needle.Response{
+	fake := &fakeAgent{responses: []cactus.Response{
 		{
-			Type:       needle.ResponseCall,
+			Type:       cactus.ResponseCall,
 			Success:    true,
 			Confidence: &confidence,
-			FunctionCalls: []needle.FunctionCall{{
+			FunctionCalls: []cactus.FunctionCall{{
 				Name:      "get_weather",
 				Arguments: json.RawMessage(`{"city":"Paris"}`),
 			}},
 		},
 		{
-			Type:       needle.ResponseCall,
+			Type:       cactus.ResponseCall,
 			Success:    true,
 			Confidence: &confidence,
-			FunctionCalls: []needle.FunctionCall{{
+			FunctionCalls: []cactus.FunctionCall{{
 				Name:      "set_timer",
 				Arguments: json.RawMessage(`{"minutes":10.0}`),
 			}},
 		},
 	}}
 	app, stdout, stderr := testApplication("")
-	var gotConfig needle.Config
-	app.deps.newAgent = func(_ context.Context, config needle.Config) (session, error) {
+	var gotConfig cactus.Config
+	app.deps.newAgent = func(_ context.Context, config cactus.Config) (session, error) {
 		gotConfig = config
 		return fake, nil
 	}
@@ -181,29 +181,29 @@ func TestEvalJSON(t *testing.T) {
 	}, "\n"))
 
 	confidence := 0.75
-	fake := &fakeAgent{responses: []needle.Response{
+	fake := &fakeAgent{responses: []cactus.Response{
 		{
-			Type:       needle.ResponseCall,
+			Type:       cactus.ResponseCall,
 			Success:    true,
 			Confidence: &confidence,
-			FunctionCalls: []needle.FunctionCall{{
+			FunctionCalls: []cactus.FunctionCall{{
 				Name:      "get_weather",
 				Arguments: json.RawMessage(`{"city":"Paris"}`),
 			}},
 		},
 		{
-			Type:       needle.ResponseCall,
+			Type:       cactus.ResponseCall,
 			Success:    true,
 			Confidence: &confidence,
-			FunctionCalls: []needle.FunctionCall{{
+			FunctionCalls: []cactus.FunctionCall{{
 				Name:      "set_timer",
 				Arguments: json.RawMessage(`{"minutes":10}`),
 			}},
 		},
-		{Type: needle.ResponseRespond, Success: true, Confidence: &confidence},
+		{Type: cactus.ResponseRespond, Success: true, Confidence: &confidence},
 	}}
 	app, stdout, stderr := testApplication("")
-	app.deps.newAgent = func(context.Context, needle.Config) (session, error) {
+	app.deps.newAgent = func(context.Context, cactus.Config) (session, error) {
 		return fake, nil
 	}
 	if code := app.run(context.Background(), []string{
@@ -253,18 +253,18 @@ func TestEvalMinimumScore(t *testing.T) {
 	casesPath := filepath.Join(temporary, "cases.jsonl")
 	writeTestFile(t, toolsPath, `[{"name":"get_weather","parameters":{"type":"object"}}]`)
 	writeTestFile(t, casesPath, `{"input":"weather in Paris","want":["get_weather"]}`)
-	response := needle.Response{
-		Type:    needle.ResponseCall,
+	response := cactus.Response{
+		Type:    cactus.ResponseCall,
 		Success: true,
-		FunctionCalls: []needle.FunctionCall{{
+		FunctionCalls: []cactus.FunctionCall{{
 			Name:      "set_timer",
 			Arguments: json.RawMessage(`{"minutes":10}`),
 		}},
 	}
 
 	app, stdout, stderr := testApplication("")
-	app.deps.newAgent = func(context.Context, needle.Config) (session, error) {
-		return &fakeAgent{responses: []needle.Response{response}}, nil
+	app.deps.newAgent = func(context.Context, cactus.Config) (session, error) {
+		return &fakeAgent{responses: []cactus.Response{response}}, nil
 	}
 	if code := app.run(context.Background(), []string{
 		"eval", "--tools", toolsPath, "--cases", casesPath, "--min-score", "1",
@@ -277,8 +277,8 @@ func TestEvalMinimumScore(t *testing.T) {
 	}
 
 	app, _, stderr = testApplication("")
-	app.deps.newAgent = func(context.Context, needle.Config) (session, error) {
-		return &fakeAgent{responses: []needle.Response{response}}, nil
+	app.deps.newAgent = func(context.Context, cactus.Config) (session, error) {
+		return &fakeAgent{responses: []cactus.Response{response}}, nil
 	}
 	if code := app.run(context.Background(), []string{
 		"eval", "--tools", toolsPath, "--cases", casesPath,
@@ -287,8 +287,8 @@ func TestEvalMinimumScore(t *testing.T) {
 	}
 
 	app, stdout, stderr = testApplication("")
-	app.deps.newAgent = func(context.Context, needle.Config) (session, error) {
-		return &fakeAgent{responses: []needle.Response{response}}, nil
+	app.deps.newAgent = func(context.Context, cactus.Config) (session, error) {
+		return &fakeAgent{responses: []cactus.Response{response}}, nil
 	}
 	if code := app.run(context.Background(), []string{
 		"eval", "--tools", toolsPath, "--cases", casesPath, "--format", "json", "--min-score", "1",

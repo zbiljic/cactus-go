@@ -1,6 +1,6 @@
 //go:build (darwin && !ios) || (linux && !android) || windows
 
-package needle
+package cactus
 
 import (
 	"fmt"
@@ -63,10 +63,10 @@ func registerNative(handle uintptr, symbol func(uintptr, string) (uintptr, error
 	} {
 		address, err := symbol(handle, binding.name)
 		if err != nil {
-			return nil, fmt.Errorf("needle: resolve %s: %w", binding.name, err)
+			return nil, fmt.Errorf("cactus: resolve %s: %w", binding.name, err)
 		}
 		if address == 0 {
-			return nil, fmt.Errorf("needle: resolve %s: null symbol", binding.name)
+			return nil, fmt.Errorf("cactus: resolve %s: null symbol", binding.name)
 		}
 		purego.RegisterFunc(binding.target, address)
 	}

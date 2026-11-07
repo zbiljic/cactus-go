@@ -1,4 +1,4 @@
-package needle
+package cactus
 
 import (
 	"encoding/binary"
@@ -64,23 +64,23 @@ var runtimes = map[int]*processRuntime{2: {}, 3: {}}
 func WeightsGeneration(path string) (int, error) {
 	file, err := os.Open(path)
 	if err != nil {
-		return 0, fmt.Errorf("needle: read weights: %w", err)
+		return 0, fmt.Errorf("cactus: read weights: %w", err)
 	}
 	defer file.Close()
 	var header [4]byte
 	n, err := io.ReadFull(file, header[:])
 	if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
-		return 0, fmt.Errorf("needle: read weights: %w", err)
+		return 0, fmt.Errorf("cactus: read weights: %w", err)
 	}
 	return weightsGeneration(header[:n])
 }
 
 func weightsGeneration(blob []byte) (int, error) {
 	if len(blob) == 0 {
-		return 0, errors.New("needle: weights file is empty")
+		return 0, errors.New("cactus: weights file is empty")
 	}
 	if len(blob) < 4 {
-		return 0, errors.New("needle: weights header is truncated")
+		return 0, errors.New("cactus: weights header is truncated")
 	}
 	switch tag := binary.LittleEndian.Uint32(blob[:4]); tag {
 	case needle2WeightsTag:
@@ -88,18 +88,18 @@ func weightsGeneration(blob []byte) (int, error) {
 	case needle3WeightsTag:
 		return 3, nil
 	default:
-		return 0, fmt.Errorf("needle: unknown weights header 0x%08x", tag)
+		return 0, fmt.Errorf("cactus: unknown weights header 0x%08x", tag)
 	}
 }
 
 func (r *processRuntime) ensureLibraryLocked(path string) error {
 	absolute, err := filepath.Abs(path)
 	if err != nil {
-		return fmt.Errorf("needle: resolve library path: %w", err)
+		return fmt.Errorf("cactus: resolve library path: %w", err)
 	}
 	if r.api != nil {
 		if absolute != r.libraryPath {
-			return fmt.Errorf("needle: engine already loaded from %s", r.libraryPath)
+			return fmt.Errorf("cactus: engine already loaded from %s", r.libraryPath)
 		}
 		return nil
 	}
@@ -114,7 +114,7 @@ func (r *processRuntime) ensureLibraryLocked(path string) error {
 
 func (r *processRuntime) bindLocked(a *Agent) error {
 	if r.api == nil {
-		return errors.New("needle: engine is not loaded")
+		return errors.New("cactus: engine is not loaded")
 	}
 	if a.closed {
 		return ErrClosed
@@ -124,14 +124,14 @@ func (r *processRuntime) bindLocked(a *Agent) error {
 	}
 	if a.weightsPath == "" && r.activeWeights != "" {
 		return fmt.Errorf(
-			"needle: tuned weights %s are loaded and cannot be unloaded; use a separate process for the base model",
+			"cactus: tuned weights %s are loaded and cannot be unloaded; use a separate process for the base model",
 			r.activeWeights,
 		)
 	}
 	if a.weightsPath != "" && a.weightsPath != r.activeWeights {
 		blob, err := os.ReadFile(a.weightsPath)
 		if err != nil {
-			return fmt.Errorf("needle: read weights: %w", err)
+			return fmt.Errorf("cactus: read weights: %w", err)
 		}
 		generation, err := weightsGeneration(blob)
 		if err != nil {
@@ -139,11 +139,11 @@ func (r *processRuntime) bindLocked(a *Agent) error {
 		}
 		if generation != a.generation {
 			return fmt.Errorf(
-				"needle: weights generation changed: got %d, want %d", generation, a.generation,
+				"cactus: weights generation changed: got %d, want %d", generation, a.generation,
 			)
 		}
 		if generation == 3 && weightsKind(blob) != modelText {
-			return errors.New("needle: weights are not a recognized text model")
+			return errors.New("cactus: weights are not a recognized text model")
 		}
 		if code := r.api.load(blob, uint64(len(blob))); code < 0 {
 			return r.api.failure("load weights", code, "")

@@ -91,25 +91,25 @@ jobs:
       - name: Cache native engine
         uses: actions/cache@v6
         with:
-          path: ~/.cache/cactus-needle
-          key: needle-engine-${{ matrix.platform }}-${{ hashFiles('fetch.go') }}
+          path: ~/.cache/cactus-go
+          key: cactus-engine-${{ matrix.platform }}-${{ hashFiles('fetch.go') }}
 
       - name: Fetch native engine
         run: |
-          go run ./cmd/needlez fetch --generation 2
-          go run ./cmd/needlez fetch --generation 3
+          go run ./cmd/cactusz fetch --generation 2
+          go run ./cmd/cactusz fetch --generation 3
 
       - name: Run native smoke test
         run: |
-          go run ./cmd/needlez doctor --generation 2 --smoke
-          go run ./cmd/needlez doctor --generation 3 --smoke
+          go run ./cmd/cactusz doctor --generation 2 --smoke
+          go run ./cmd/cactusz doctor --generation 3 --smoke
 
       - name: Run native conformance tests
         run: |
-          go run ./cmd/needlez test --generation 2
-          go run ./cmd/needlez test --generation 3
+          go run ./cmd/cactusz test --generation 2
+          go run ./cmd/cactusz test --generation 3
 
       - name: Test generations together
         env:
-          NEEDLE_TEST_NATIVE: "1"
+          CACTUS_TEST_NATIVE: "1"
         run: go test -run '^TestNative(Generations|EngineDiagnostics|Embeddings|Whistle)$' -v .

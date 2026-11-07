@@ -1,4 +1,4 @@
-package needle
+package cactus
 
 import (
 	"context"
@@ -23,7 +23,7 @@ func NewTool[Arguments, Result any](
 	tool.Handler = func(ctx context.Context, raw json.RawMessage) (any, error) {
 		var arguments Arguments
 		if err := json.Unmarshal(raw, &arguments); err != nil {
-			return nil, fmt.Errorf("needle: decode arguments for tool %q: %w", name, err)
+			return nil, fmt.Errorf("cactus: decode arguments for tool %q: %w", name, err)
 		}
 		return handler(ctx, arguments)
 	}

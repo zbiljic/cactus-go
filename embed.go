@@ -1,4 +1,4 @@
-package needle
+package cactus
 
 import (
 	"context"
@@ -39,7 +39,7 @@ func (a *Agent) Embed(ctx context.Context, text string) ([]float32, error) {
 		return nil, api.failure("embed size", size, "")
 	}
 	if size == 0 || size > maxEmbeddingFloats {
-		return nil, fmt.Errorf("needle: invalid embedding size %d", size)
+		return nil, fmt.Errorf("cactus: invalid embedding size %d", size)
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -50,7 +50,7 @@ func (a *Agent) Embed(ctx context.Context, text string) ([]float32, error) {
 		return nil, api.failure("embed", code, "")
 	}
 	if code != size {
-		return nil, fmt.Errorf("needle: embedding length %d, want %d", code, size)
+		return nil, fmt.Errorf("cactus: embedding length %d, want %d", code, size)
 	}
 	return output, nil
 }

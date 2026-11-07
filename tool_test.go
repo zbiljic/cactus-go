@@ -1,4 +1,4 @@
-package needle
+package cactus
 
 import (
 	"context"
@@ -65,7 +65,7 @@ func TestNewToolErrors(t *testing.T) {
 				t.Fatal("handler called with invalid arguments")
 				return typedToolResult{}, nil
 			},
-			wantError: `needle: decode arguments for tool "weather"`,
+			wantError: `cactus: decode arguments for tool "weather"`,
 		},
 		{
 			name: "handler failure",

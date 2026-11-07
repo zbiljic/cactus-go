@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"log"
 
-	needle "github.com/zbiljic/needle-go"
+	"github.com/zbiljic/cactus-go"
 )
 
 type contactArguments struct {
@@ -15,8 +15,8 @@ type contactArguments struct {
 
 func main() {
 	ctx := context.Background()
-	agent, err := needle.New(ctx, needle.Config{
-		Tools: []needle.Tool{{Schema: needle.SchemaFor[contactArguments](
+	agent, err := cactus.New(ctx, cactus.Config{
+		Tools: []cactus.Tool{{Schema: cactus.SchemaFor[contactArguments](
 			"search_contacts",
 			"Find a person in the user's contacts.",
 		)}},
@@ -24,14 +24,14 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	response, err := agent.Complete(ctx, "Find Ada Lovelace in my contacts.", needle.DefaultMaxNewTokens)
+	response, err := agent.Complete(ctx, "Find Ada Lovelace in my contacts.", cactus.DefaultMaxNewTokens)
 	if err != nil {
 		log.Fatal(err)
 	}
-	if err := needle.ValidateResponse(response); err != nil {
+	if err := cactus.ValidateResponse(response); err != nil {
 		log.Fatal(err)
 	}
-	if response.Type != needle.ResponseCall || len(response.FunctionCalls) == 0 {
+	if response.Type != cactus.ResponseCall || len(response.FunctionCalls) == 0 {
 		log.Fatalf("expected a tool call, got %s", response.Type)
 	}
 
@@ -49,11 +49,11 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	response, err = agent.Complete(ctx, string(toolResults), needle.DefaultMaxNewTokens)
+	response, err = agent.Complete(ctx, string(toolResults), cactus.DefaultMaxNewTokens)
 	if err != nil {
 		log.Fatal(err)
 	}
-	if err := needle.ValidateResponse(response); err != nil {
+	if err := cactus.ValidateResponse(response); err != nil {
 		log.Fatal(err)
 	}
 	fmt.Printf("final response: %s\n", response.Type)

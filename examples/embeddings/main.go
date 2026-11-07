@@ -8,12 +8,12 @@ import (
 	"math"
 	"slices"
 
-	needle "github.com/zbiljic/needle-go"
+	"github.com/zbiljic/cactus-go"
 )
 
 func main() {
 	ctx := context.Background()
-	agent, err := needle.New(ctx, needle.Config{})
+	agent, err := cactus.New(ctx, cactus.Config{})
 	if err != nil {
 		log.Fatal(err)
 	}

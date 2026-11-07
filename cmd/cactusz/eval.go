@@ -13,7 +13,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	needle "github.com/zbiljic/needle-go"
+	"github.com/zbiljic/cactus-go"
 )
 
 const (
@@ -53,7 +53,7 @@ type evaluationCaseReport struct {
 	Index        int                           `json:"index"`
 	Input        string                        `json:"input"`
 	Want         []evaluationReportExpectation `json:"want"`
-	Response     needle.Response               `json:"response"`
+	Response     cactus.Response               `json:"response"`
 	CallResponse bool                          `json:"call_response"`
 	NameMatch    bool                          `json:"name_match"`
 	ExactMatch   bool                          `json:"exact_match"`
@@ -365,13 +365,13 @@ func parseEvaluationExpectation(data []byte) (evaluationExpectation, error) {
 	return expectation, nil
 }
 
-func evaluateResponse(response needle.Response, want []evaluationExpectation) evaluationResult {
+func evaluateResponse(response cactus.Response, want []evaluationExpectation) evaluationResult {
 	actualNames := make([]string, 0, len(response.FunctionCalls))
 	for _, call := range response.FunctionCalls {
 		actualNames = append(actualNames, call.Name)
 	}
 	result := evaluationResult{
-		call:       response.Success && response.Type == needle.ResponseCall,
+		call:       response.Success && response.Type == cactus.ResponseCall,
 		actual:     formatEvaluationCalls(response),
 		confidence: response.Confidence,
 	}
@@ -412,7 +412,7 @@ func equalJSON(left, right json.RawMessage) bool {
 	return reflect.DeepEqual(leftValue, rightValue)
 }
 
-func formatEvaluationCalls(response needle.Response) string {
+func formatEvaluationCalls(response cactus.Response) string {
 	if len(response.FunctionCalls) != 0 {
 		names := make([]string, 0, len(response.FunctionCalls))
 		for _, call := range response.FunctionCalls {
@@ -420,10 +420,10 @@ func formatEvaluationCalls(response needle.Response) string {
 		}
 		return strings.Join(names, ">")
 	}
-	if response.Type == needle.ResponseRefuse {
+	if response.Type == cactus.ResponseRefuse {
 		return "(refusal)"
 	}
-	if response.Type == needle.ResponseRespond {
+	if response.Type == cactus.ResponseRespond {
 		return "(respond)"
 	}
 	return "(no call)"

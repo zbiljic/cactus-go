@@ -1,6 +1,6 @@
 //go:build (darwin && !ios) || (linux && !android)
 
-package needle
+package cactus
 
 import (
 	"fmt"
@@ -11,7 +11,7 @@ import (
 func loadNative(path string) (*nativeAPI, error) {
 	handle, err := purego.Dlopen(path, purego.RTLD_NOW|purego.RTLD_LOCAL)
 	if err != nil {
-		return nil, fmt.Errorf("needle: load native library: %w", err)
+		return nil, fmt.Errorf("cactus: load native library: %w", err)
 	}
 	api, err := registerNative(handle, purego.Dlsym)
 	if err != nil {

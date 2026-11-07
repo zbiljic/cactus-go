@@ -1,6 +1,6 @@
 //go:build (darwin && !ios) || (linux && !android) || windows
 
-package needle
+package cactus
 
 import (
 	"errors"

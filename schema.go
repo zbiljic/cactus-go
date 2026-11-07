@@ -1,4 +1,4 @@
-package needle
+package cactus
 
 import (
 	"encoding/json"
@@ -30,11 +30,11 @@ func parametersFor[T any]() map[string]any {
 
 	data, err := json.Marshal(reflected)
 	if err != nil {
-		panic(fmt.Errorf("needle: encode schema for %s: %w", reflect.TypeFor[T](), err))
+		panic(fmt.Errorf("cactus: encode schema for %s: %w", reflect.TypeFor[T](), err))
 	}
 	var parameters map[string]any
 	if err := json.Unmarshal(data, &parameters); err != nil {
-		panic(fmt.Errorf("needle: decode schema for %s: %w", reflect.TypeFor[T](), err))
+		panic(fmt.Errorf("cactus: decode schema for %s: %w", reflect.TypeFor[T](), err))
 	}
 	return parameters
 }

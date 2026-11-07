@@ -1,4 +1,4 @@
-package needle
+package cactus
 
 import (
 	"archive/zip"
@@ -271,7 +271,7 @@ func CurrentPlatform() (Platform, error) {
 }
 
 // CachedEngine returns the expected cached library path without downloading
-// anything. It accepts libraries installed by needle-go or another client.
+// anything. It accepts libraries installed by cactus-go or another client.
 func CachedEngine(options FetchOptions) (string, error) {
 	release, err := releaseFor(options.Generation)
 	if err != nil {
@@ -303,7 +303,7 @@ func CachedEngine(options FetchOptions) (string, error) {
 		if errors.Is(err, os.ErrNotExist) {
 			return "", fmt.Errorf("%w: %s", ErrEngineNotFound, path)
 		}
-		return "", fmt.Errorf("needle: inspect cached engine: %w", err)
+		return "", fmt.Errorf("cactus: inspect cached engine: %w", err)
 	}
 	if !info.Mode().IsRegular() {
 		return "", fmt.Errorf("%w: %s is not a regular file", ErrEngineNotFound, path)
@@ -410,7 +410,7 @@ func fetchArtifact(
 	url string,
 ) (string, error) {
 	if err := os.MkdirAll(cacheDir, 0o755); err != nil {
-		return "", fmt.Errorf("needle: create engine cache: %w", err)
+		return "", fmt.Errorf("cactus: create engine cache: %w", err)
 	}
 	target := filepath.Join(cacheDir, artifact.libraryName)
 	marker := target + ".sha256"
@@ -418,13 +418,13 @@ func fetchArtifact(
 		return target, nil
 	}
 
-	wheel, err := os.CreateTemp(cacheDir, ".needle-*.whl")
+	wheel, err := os.CreateTemp(cacheDir, ".cactus-*.whl")
 	if err != nil {
-		return "", fmt.Errorf("needle: create temporary download: %w", err)
+		return "", fmt.Errorf("cactus: create temporary download: %w", err)
 	}
 	wheelPath := wheel.Name()
 	if err := wheel.Close(); err != nil {
-		return "", fmt.Errorf("needle: close temporary download: %w", err)
+		return "", fmt.Errorf("cactus: close temporary download: %w", err)
 	}
 	defer os.Remove(wheelPath)
 
@@ -433,10 +433,10 @@ func fetchArtifact(
 	}
 	if artifact.archivePath == "" {
 		if err := os.Remove(target); err != nil && !errors.Is(err, os.ErrNotExist) {
-			return "", fmt.Errorf("needle: replace cached weights: %w", err)
+			return "", fmt.Errorf("cactus: replace cached weights: %w", err)
 		}
 		if err := os.Rename(wheelPath, target); err != nil {
-			return "", fmt.Errorf("needle: install weights: %w", err)
+			return "", fmt.Errorf("cactus: install weights: %w", err)
 		}
 	} else {
 		if err := extractLibrary(wheelPath, cacheDir, target, artifact.archivePath); err != nil {
@@ -445,10 +445,10 @@ func fetchArtifact(
 	}
 	installedHash, err := installedChecksum(target)
 	if err != nil {
-		return "", fmt.Errorf("needle: hash installed artifact: %w", err)
+		return "", fmt.Errorf("cactus: hash installed artifact: %w", err)
 	}
 	if err := os.WriteFile(marker, []byte(artifact.checksum+"\n"+installedHash+"\n"), 0o644); err != nil {
-		return "", fmt.Errorf("needle: write engine checksum marker: %w", err)
+		return "", fmt.Errorf("cactus: write engine checksum marker: %w", err)
 	}
 	return target, nil
 }
@@ -472,7 +472,7 @@ func downloadArtifact(ctx context.Context, client *http.Client, url, destination
 			return lastErr
 		}
 	}
-	return fmt.Errorf("needle: download artifact after 3 attempts: %w", lastErr)
+	return fmt.Errorf("cactus: download artifact after 3 attempts: %w", lastErr)
 }
 
 func downloadAttempt(ctx context.Context, client *http.Client, url, destination, checksum string) error {
@@ -480,7 +480,7 @@ func downloadAttempt(ctx context.Context, client *http.Client, url, destination,
 	if err != nil {
 		return err
 	}
-	request.Header.Set("User-Agent", "needle-go/"+EngineVersion)
+	request.Header.Set("User-Agent", "cactus-go/"+EngineVersion)
 	response, err := client.Do(request)
 	if err != nil {
 		return err
@@ -517,7 +517,7 @@ func downloadAttempt(ctx context.Context, client *http.Client, url, destination,
 func extractLibrary(wheelPath, cacheDir, target, archivePath string) error {
 	archive, err := zip.OpenReader(wheelPath)
 	if err != nil {
-		return fmt.Errorf("needle: open engine archive: %w", err)
+		return fmt.Errorf("cactus: open engine archive: %w", err)
 	}
 	defer archive.Close()
 
@@ -529,39 +529,39 @@ func extractLibrary(wheelPath, cacheDir, target, archivePath string) error {
 		}
 	}
 	if source == nil {
-		return fmt.Errorf("needle: engine archive does not contain %s", archivePath)
+		return fmt.Errorf("cactus: engine archive does not contain %s", archivePath)
 	}
 	reader, err := source.Open()
 	if err != nil {
-		return fmt.Errorf("needle: open engine library: %w", err)
+		return fmt.Errorf("cactus: open engine library: %w", err)
 	}
 	defer reader.Close()
 
 	temporary, err := os.CreateTemp(cacheDir, ".libneedle-*")
 	if err != nil {
-		return fmt.Errorf("needle: create temporary library: %w", err)
+		return fmt.Errorf("cactus: create temporary library: %w", err)
 	}
 	temporaryPath := temporary.Name()
 	defer os.Remove(temporaryPath)
 	written, copyErr := io.Copy(temporary, io.LimitReader(reader, maxArtifactSize+1))
 	closeErr := temporary.Close()
 	if copyErr != nil {
-		return fmt.Errorf("needle: extract engine library: %w", copyErr)
+		return fmt.Errorf("cactus: extract engine library: %w", copyErr)
 	}
 	if closeErr != nil {
-		return fmt.Errorf("needle: close engine library: %w", closeErr)
+		return fmt.Errorf("cactus: close engine library: %w", closeErr)
 	}
 	if written > maxArtifactSize {
-		return fmt.Errorf("needle: engine library exceeds %d bytes", maxArtifactSize)
+		return fmt.Errorf("cactus: engine library exceeds %d bytes", maxArtifactSize)
 	}
 	if err := os.Chmod(temporaryPath, 0o755); err != nil {
-		return fmt.Errorf("needle: set engine library permissions: %w", err)
+		return fmt.Errorf("cactus: set engine library permissions: %w", err)
 	}
 	if err := os.Remove(target); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("needle: replace cached engine: %w", err)
+		return fmt.Errorf("cactus: replace cached engine: %w", err)
 	}
 	if err := os.Rename(temporaryPath, target); err != nil {
-		return fmt.Errorf("needle: install engine library: %w", err)
+		return fmt.Errorf("cactus: install engine library: %w", err)
 	}
 	return nil
 }
@@ -625,9 +625,9 @@ func defaultCacheDir(release engineRelease, platform Platform) (string, error) {
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return "", fmt.Errorf("needle: find home directory: %w", err)
+		return "", fmt.Errorf("cactus: find home directory: %w", err)
 	}
-	return filepath.Join(home, ".cache", "cactus-needle", release.version, string(platform)), nil
+	return filepath.Join(home, ".cache", "cactus-go", release.version, string(platform)), nil
 }
 
 func isMusl() bool {

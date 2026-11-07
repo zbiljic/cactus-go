@@ -1,4 +1,4 @@
-package needle
+package cactus
 
 import (
 	"context"
@@ -296,8 +296,8 @@ func TestFetchWhistleUsesVerifiedCacheWithoutTextWeights(t *testing.T) {
 }
 
 func TestNativeWhistle(t *testing.T) {
-	if os.Getenv("NEEDLE_TEST_NATIVE") != "1" {
-		t.Skip("set NEEDLE_TEST_NATIVE=1 to test native speech")
+	if os.Getenv("CACTUS_TEST_NATIVE") != "1" {
+		t.Skip("set CACTUS_TEST_NATIVE=1 to test native speech")
 	}
 	ctx := context.Background()
 	w, err := NewWhistle(ctx, WhistleConfig{})

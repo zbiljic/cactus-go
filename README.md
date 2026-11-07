@@ -1,8 +1,8 @@
-# needle-go
+# cactus-go
 
-`needle-go` is a Go library for running the
-[Cactus Needle](https://github.com/cactus-compute/needle) on-device
-tool-calling model.
+`cactus-go` is a community-maintained Go library for running
+[Cactus](https://github.com/cactus-compute/cactus) on-device models: Needle
+tool calling and Whistle speech.
 
 It provides:
 
@@ -22,7 +22,7 @@ It provides:
 Requires Go 1.25 or newer.
 
 ```sh
-go get github.com/zbiljic/needle-go
+go get github.com/zbiljic/cactus-go
 ```
 
 Engine builds are available for macOS, Linux (glibc and musl), and Windows on
@@ -38,7 +38,7 @@ import (
 	"fmt"
 	"log"
 
-	needle "github.com/zbiljic/needle-go"
+	"github.com/zbiljic/cactus-go"
 )
 
 type weatherArguments struct {
@@ -47,7 +47,7 @@ type weatherArguments struct {
 
 func main() {
 	ctx := context.Background()
-	weather := needle.NewTool(
+	weather := cactus.NewTool(
 		"get_weather",
 		"Get the current weather for a city.",
 		func(_ context.Context, arguments weatherArguments) (string, error) {
@@ -55,15 +55,15 @@ func main() {
 		},
 	)
 
-	agent, err := needle.New(ctx, needle.Config{Tools: []needle.Tool{weather}})
+	agent, err := cactus.New(ctx, cactus.Config{Tools: []cactus.Tool{weather}})
 	if err != nil {
 		log.Fatal(err)
 	}
 	response, err := agent.Run(
 		ctx,
 		"What is the weather in Lagos?",
-		needle.DefaultMaxSteps,
-		needle.DefaultMaxNewTokens,
+		cactus.DefaultMaxSteps,
+		cactus.DefaultMaxNewTokens,
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -72,7 +72,7 @@ func main() {
 }
 ```
 
-By default, `needle.New` downloads and caches the pinned Needle 3 engine
+By default, `cactus.New` downloads and caches the pinned Needle 3 engine
 (3.3.1) and its `needle3.cact` base weights (~35 MB) from the
 [Needle 3 model repository](https://huggingface.co/Cactus-Compute/needle3).
 Subsequent runs use the cached files. No Python installation is required.
@@ -96,7 +96,7 @@ Agents retain conversation context by default. Set `Stateless: true` for
 independent requests:
 
 ```go
-agent, err := needle.New(ctx, needle.Config{Tools: tools, Stateless: true})
+agent, err := cactus.New(ctx, cactus.Config{Tools: tools, Stateless: true})
 ```
 
 Each `Complete` or `Run` starts with a fresh conversation; `Run` retains context
@@ -132,7 +132,7 @@ To check finite, repeatable vectors and a tool-result continuation with an
 embedding between turns against the real engine:
 
 ```sh
-NEEDLE_TEST_NATIVE=1 go test -run '^TestNativeEmbeddings$' -v .
+CACTUS_TEST_NATIVE=1 go test -run '^TestNativeEmbeddings$' -v .
 ```
 
 ## Speech
@@ -149,7 +149,7 @@ setup, or try the [PCM example](examples/transcribe).
 Use `Generation: 2` for the embedded Needle 2 model (engine 2.0.4):
 
 ```go
-agent, err := needle.New(ctx, needle.Config{
+agent, err := cactus.New(ctx, cactus.Config{
 	Generation: 2,
 	Tools:      tools,
 })
@@ -183,7 +183,7 @@ Engines exposing `needle_last_error` provide detailed native failure messages.
 
 `FetchEngine` prepares the library and required base weights for offline use.
 `FetchOptions.Generation` selects the generation. Default caches are under
-`~/.cache/cactus-needle/<engine-version>/<platform>/`;
+`~/.cache/cactus-go/<engine-version>/<platform>/`;
 `CacheDir` selects an exact directory.
 V2 uses `libneedle.*`, while v3 uses `libneedle3.*`, so the generations can share
 a custom cache directory for the same platform. For offline use, fetch for the
@@ -202,20 +202,20 @@ native code and any engine diagnostic, for `errors.As`.
 
 ## Native engine diagnostics
 
-The optional `needlez` command can fetch the engine and verify that it loads:
+The optional `cactusz` command can fetch the engine and verify that it loads:
 
 ```sh
-go run github.com/zbiljic/needle-go/cmd/needlez@latest fetch
-go run github.com/zbiljic/needle-go/cmd/needlez@latest doctor --smoke
-go run github.com/zbiljic/needle-go/cmd/needlez@latest test
+go run github.com/zbiljic/cactus-go/cmd/cactusz@latest fetch
+go run github.com/zbiljic/cactus-go/cmd/cactusz@latest doctor --smoke
+go run github.com/zbiljic/cactus-go/cmd/cactusz@latest test
 ```
 
 To run the checks against Needle 2 from a repository checkout:
 
 ```sh
-go run ./cmd/needlez fetch --generation 2
-go run ./cmd/needlez doctor --generation 2 --smoke
-go run ./cmd/needlez test --generation 2
+go run ./cmd/cactusz fetch --generation 2
+go run ./cmd/cactusz doctor --generation 2 --smoke
+go run ./cmd/cactusz test --generation 2
 ```
 
 Responses preserve `suppressed_calls` for inspection. `Run` executes only

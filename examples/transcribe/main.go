@@ -12,11 +12,11 @@ import (
 	"math"
 	"os"
 
-	needle "github.com/zbiljic/needle-go"
+	"github.com/zbiljic/cactus-go"
 )
 
 // maxSamples bounds memory for this example; the engine itself accepts any length.
-const maxSamples = 10 * 60 * needle.SpeechSampleRate
+const maxSamples = 10 * 60 * cactus.SpeechSampleRate
 
 func main() {
 	stream := flag.Bool("stream", false, "transcribe live in one-second chunks")
@@ -41,13 +41,13 @@ func main() {
 		pcm[i] = math.Float32frombits(binary.LittleEndian.Uint32(data[i*4:]))
 	}
 	ctx := context.Background()
-	speech, err := needle.NewWhistle(ctx, needle.WhistleConfig{})
+	speech, err := cactus.NewWhistle(ctx, cactus.WhistleConfig{})
 	if err != nil {
 		log.Fatal(err)
 	}
 	encoder := json.NewEncoder(os.Stdout)
 	if !*stream {
-		transcript, err := speech.Transcribe(ctx, pcm, needle.AudioOptions{WordTimestamps: true})
+		transcript, err := speech.Transcribe(ctx, pcm, cactus.AudioOptions{WordTimestamps: true})
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -56,12 +56,12 @@ func main() {
 		}
 		return
 	}
-	live, err := speech.Stream(needle.AudioOptions{})
+	live, err := speech.Stream(cactus.AudioOptions{})
 	if err != nil {
 		log.Fatal(err)
 	}
-	for start := 0; start < len(pcm); start += needle.SpeechSampleRate {
-		step, err := live.Process(ctx, pcm[start:min(start+needle.SpeechSampleRate, len(pcm))])
+	for start := 0; start < len(pcm); start += cactus.SpeechSampleRate {
+		step, err := live.Process(ctx, pcm[start:min(start+cactus.SpeechSampleRate, len(pcm))])
 		if err != nil {
 			log.Fatal(err)
 		}
