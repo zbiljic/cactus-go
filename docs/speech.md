@@ -76,8 +76,8 @@ stateful agents retain context for manual tool-result continuations.
 
 ## Runtime and custom weights
 
-Needle 3 text and speech share the same serialized Cactus engine runtime and
-library path.
+Whistle shares one serialized Cactus engine runtime and library path with the
+other models the engine runs, such as Needle 3 text.
 Loading or switching speech models preserves the active text conversation;
 switching text agents follows the existing reset rules. Audio options are
 cleared after each completion. An in-progress native call cannot be interrupted

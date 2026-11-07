@@ -2,7 +2,7 @@
 
 `cactus-go` is a community-maintained Go library for running
 [Cactus](https://github.com/cactus-compute/cactus) on-device models: Needle
-tool calling and Whistle speech.
+tool calling, Whistle speech and Mirage vision.
 
 It provides:
 
@@ -14,6 +14,7 @@ It provides:
 - structured response extraction
 - Needle 3 text embeddings
 - opt-in Whistle speech transcription, live streaming and audio tool calling
+- opt-in Mirage image description, text recognition and form extraction
 
 > This project is in early development and its API may change.
 
@@ -109,7 +110,7 @@ queries.
 
 `Close` releases an agent's response buffer and native binding; later calls
 return `ErrClosed`. The engine and loaded weights stay in the process for other
-agents. `Whistle` has the same `Close`.
+agents. `Whistle` and `Mirage` have the same `Close`.
 
 ## Text embeddings
 
@@ -143,6 +144,31 @@ any length. Speech weights are downloaded only when requested.
 
 See the [speech guide](docs/speech.md) for the API, supported languages and offline
 setup, or try the [PCM example](examples/transcribe).
+
+## Vision
+
+`NewMirage` adds optional image understanding on the Cactus engine:
+
+- `Describe` returns the scene, the objects with boxes, masks and attributes,
+  the recognized text lines and the relations between objects.
+- `Extract` fills an ordered form of choice, count and text fields.
+
+It accepts any `image.Image`, or packed RGB through `*RGBImage`. Vision weights
+are downloaded only when requested, and loading them keeps the loaded text and
+speech models.
+
+```go
+vision, err := cactus.NewMirage(ctx, cactus.MirageConfig{})
+if err != nil {
+	log.Fatal(err)
+}
+description, err := vision.Describe(ctx, img, cactus.DescribeOptions{})
+```
+
+`DecodeImage` reads PNG, JPEG and GIF with the standard library, which does not
+apply EXIF orientation: rotate camera photos upright before describing them.
+See the [vision guide](docs/vision.md) for options, forms, coordinates and
+offline setup, or try the [image example](examples/describe-image).
 
 ## Model generations
 
@@ -210,6 +236,7 @@ The optional `cactusz` command can fetch the engine and verify that it loads:
 go run github.com/zbiljic/cactus-go/cmd/cactusz@latest fetch
 go run github.com/zbiljic/cactus-go/cmd/cactusz@latest doctor --smoke
 go run github.com/zbiljic/cactus-go/cmd/cactusz@latest test
+go run github.com/zbiljic/cactus-go/cmd/cactusz@latest describe photo.png
 ```
 
 To run the checks against Needle 2 from a repository checkout:
@@ -231,6 +258,7 @@ Responses preserve `suppressed_calls` for inspection. `Run` executes only
 - [Engine downloads](examples/fetch-engine)
 - [Text similarity](examples/embeddings)
 - [Speech transcription from PCM](examples/transcribe)
+- [Image description and forms](examples/describe-image)
 
 ## License
 

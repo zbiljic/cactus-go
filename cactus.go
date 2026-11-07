@@ -1,5 +1,5 @@
 // Package cactus provides Go access to the Cactus on-device models: Needle
-// tool calling and Whistle speech.
+// tool calling, Whistle speech and Mirage vision.
 package cactus
 
 import (
