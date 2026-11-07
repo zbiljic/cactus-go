@@ -287,7 +287,7 @@ func TestFetchWhistleUsesVerifiedCacheWithoutTextWeights(t *testing.T) {
 	if err != nil || path != filepath.Join(cache, artifacts[platform].libraryName) {
 		t.Fatalf("offline Whistle path=%q err=%v", path, err)
 	}
-	if _, err := os.Stat(filepath.Join(cache, baseWeights.filename)); !errors.Is(err, os.ErrNotExist) {
+	if _, err := os.Stat(filepath.Join(cache, baseWeights.libraryName)); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("unexpected text weights: %v", err)
 	}
 	if _, err := FetchWhistle(context.Background(), FetchOptions{Generation: 2}); err == nil {

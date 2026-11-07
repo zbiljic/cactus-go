@@ -72,8 +72,9 @@ func main() {
 }
 ```
 
-By default, `cactus.New` downloads and caches the pinned Needle 3 engine
-(3.3.1) and its `needle3.cact` base weights (~35 MB) from the
+By default, `cactus.New` downloads and caches the pinned
+[Cactus engine](https://huggingface.co/Cactus-Compute/cactus) (4.0.0) and the
+`needle3.cact` base weights (~35 MB) from the
 [Needle 3 model repository](https://huggingface.co/Cactus-Compute/needle3).
 Subsequent runs use the cached files. No Python installation is required.
 
@@ -120,8 +121,8 @@ vector, err := agent.Embed(ctx, "turn on the kitchen lights")
 
 `Embed` does not reset the conversation, including in stateless mode. Switching
 agents still follows the conversation rules below. Needle 2 and engines without
-`needle_embed` return an error; both legacy and audio-capable Needle 3 ABIs are
-supported.
+an embedding symbol return an error; Cactus 4 and both legacy and audio-capable
+Needle 3 ABIs are supported.
 
 The base model uses confidence-head probe features rather than a trained
 contrastive retrieval head. Evaluate similarity on your own data; this API does
@@ -138,7 +139,7 @@ CACTUS_TEST_NATIVE=1 go test -run '^TestNativeEmbeddings$' -v .
 ## Speech
 
 `NewWhistle` adds optional speech transcription, live streaming transcription
-and audio tool calling with Needle 3. It accepts 16 kHz mono `[]float32` PCM of
+and audio tool calling on the Cactus engine. It accepts 16 kHz mono `[]float32` PCM of
 any length. Speech weights are downloaded only when requested.
 
 See the [speech guide](docs/speech.md) for the API, supported languages and offline
@@ -155,7 +156,7 @@ agent, err := cactus.New(ctx, cactus.Config{
 })
 ```
 
-`Generation: 0` and `Generation: 3` select Needle 3. A custom `WeightsPath`
+`Generation: 0` and `Generation: 3` select Needle 3 on the Cactus engine. A custom `WeightsPath`
 selects the compatible engine from the `.cact` header, taking precedence over
 `Generation`. Custom Needle 3 archives retain the engine's confidence scores
 when their metadata carries a recognized confidence head, including platform
@@ -171,21 +172,25 @@ After loading custom Needle 2 weights, returning to its embedded base model
 requires a separate process. Needle 3 can reload its base archive.
 
 Use `LibraryPath` for an existing, trusted engine matching the selected
-generation. When `LibraryPath` is empty, environment overrides are
-`NEEDLE2_LIB_PATH` and `NEEDLE3_LIB_PATH`; the legacy `NEEDLE_LIB_PATH` is a
-fallback for Needle 2 only. A Needle 3 library override still downloads missing
-base weights unless `WeightsPath` is supplied.
+generation. When `LibraryPath` is empty, the environment overrides are
+`CACTUS_LIB_PATH` for generation 3, and `NEEDLE2_LIB_PATH`, then
+`NEEDLE_LIB_PATH`, for Needle 2 (`LibraryPathEnv` lists them). A generation 3
+library override still downloads missing base weights unless `WeightsPath` is
+supplied.
 
-Native loading detects the audio-capable ABI from its exported capability
-symbols. Trusted older Needle 2 and Needle 3 libraries retain their legacy
-completion ABI; incomplete capability sets are rejected before inference.
-Engines exposing `needle_last_error` provide detailed native failure messages.
+Native loading selects the ABI from the exported symbols. Cactus 4 engines
+export the `cactus_*` functions and must provide the complete set. The Needle 2
+engine and trusted older Needle 3 libraries use `needle_*`; the audio-capable
+ABI is detected from its capability symbols, and libraries without them keep
+the legacy completion ABI. Incomplete capability sets are rejected before
+inference. Engines exposing a last-error function provide detailed native
+failure messages.
 
 `FetchEngine` prepares the library and required base weights for offline use.
 `FetchOptions.Generation` selects the generation. Default caches are under
 `~/.cache/cactus-go/<engine-version>/<platform>/`;
 `CacheDir` selects an exact directory.
-V2 uses `libneedle.*`, while v3 uses `libneedle3.*`, so the generations can share
+V2 uses `libneedle.*`, while v3 uses `libcactus.*`, so the generations can share
 a custom cache directory for the same platform. For offline use, fetch for the
 target platform and generation, preserve the `.sha256` marker files, and use
 the same cache directory at runtime. Markers contain the downloaded artifact hash

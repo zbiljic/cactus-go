@@ -1031,7 +1031,8 @@ func TestGenerationSelectionAndUncalibratedCustomWeights(t *testing.T) {
 func TestLibraryOverridesByGeneration(t *testing.T) {
 	t.Setenv("NEEDLE_LIB_PATH", "/legacy/v2")
 	t.Setenv("NEEDLE2_LIB_PATH", "")
-	t.Setenv("NEEDLE3_LIB_PATH", "/current/v3")
+	t.Setenv("NEEDLE3_LIB_PATH", "/ignored/v3")
+	t.Setenv("CACTUS_LIB_PATH", "/current/v3")
 	for _, test := range []struct {
 		generation     int
 		explicit, want string
@@ -1055,6 +1056,18 @@ func TestLibraryOverridesByGeneration(t *testing.T) {
 	want, _ := filepath.Abs("/current/v2")
 	if err != nil || got != want {
 		t.Fatalf("v2 override: %q, %v", got, err)
+	}
+	for generation, want := range map[int][]string{
+		0: {"CACTUS_LIB_PATH"},
+		2: {"NEEDLE2_LIB_PATH", "NEEDLE_LIB_PATH"},
+		3: {"CACTUS_LIB_PATH"},
+	} {
+		if got, err := LibraryPathEnv(generation); err != nil || !reflect.DeepEqual(got, want) {
+			t.Fatalf("LibraryPathEnv(%d) = %v, %v; want %v", generation, got, err, want)
+		}
+	}
+	if _, err := LibraryPathEnv(4); !errors.Is(err, ErrUnsupportedGeneration) {
+		t.Fatalf("LibraryPathEnv(4) error = %v", err)
 	}
 }
 

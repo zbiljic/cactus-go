@@ -37,7 +37,7 @@ type conformanceInvoice struct {
 func (a *application) runTest(ctx context.Context, args []string) error {
 	flags := a.flagSet("Run behavioral conformance checks against the native model.", "test [options]")
 	generation := flags.Int("generation", cactus.DefaultGeneration, "model generation (2 or 3)")
-	libraryPath := flags.String("library", "", "path to libneedle shared library")
+	libraryPath := flags.String("library", "", "path to the engine shared library")
 	cacheDir := flags.String("cache", "", "engine cache directory")
 	bufferSize := flags.Int("buffer-size", 0, "native response buffer size")
 	if err := parseFlags(flags, args); err != nil {

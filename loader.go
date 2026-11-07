@@ -8,15 +8,44 @@ import (
 	"github.com/ebitengine/purego"
 )
 
+// cactusSymbols is the cactus_* ABI that every Cactus 4 engine exports in full.
+// cactus_describe is bound only when vision support needs it.
+var cactusSymbols = []string{
+	"load", "models", "last_error", "init", "complete", "set_audio", "reset",
+	"embed", "transcribe", "stream_transcribe_process", "stream_transcribe_stop",
+}
+
+// registerNative binds the cactus_* ABI of Cactus 4 engines, or the needle_*
+// ABI of the Needle 2 engine and trusted older Needle 3 libraries. The exported
+// symbols select the prefix and, for needle_*, the completion signature.
 func registerNative(handle uintptr, symbol func(uintptr, string) (uintptr, error)) (*nativeAPI, error) {
+	prefix := "needle_"
+	for _, name := range cactusSymbols {
+		if address, _ := symbol(handle, "cactus_"+name); address != 0 {
+			prefix = "cactus_"
+			break
+		}
+	}
+	resolve := func(name string) uintptr {
+		address, _ := symbol(handle, prefix+name)
+		return address
+	}
+	if prefix == "cactus_" {
+		for _, name := range cactusSymbols {
+			if resolve(name) == 0 {
+				return nil, fmt.Errorf("%w: missing cactus_%s", ErrUnsupportedABI, name)
+			}
+		}
+	}
+
 	api := &nativeAPI{handle: handle}
-	models, _ := symbol(handle, "needle_models")
-	transcribe, _ := symbol(handle, "needle_transcribe")
-	setAudio, _ := symbol(handle, "needle_set_audio")
-	lastError, _ := symbol(handle, "needle_last_error")
-	embed, _ := symbol(handle, "needle_embed")
-	streamProcess, _ := symbol(handle, "needle_stream_transcribe_process")
-	streamStop, _ := symbol(handle, "needle_stream_transcribe_stop")
+	models := resolve("models")
+	transcribe := resolve("transcribe")
+	setAudio := resolve("set_audio")
+	lastError := resolve("last_error")
+	embed := resolve("embed")
+	streamProcess := resolve("stream_transcribe_process")
+	streamStop := resolve("stream_transcribe_stop")
 	audioABI := models != 0 || transcribe != 0 || setAudio != 0
 	if audioABI {
 		// These symbols were introduced together with the six-argument completion ABI.
@@ -24,25 +53,23 @@ func registerNative(handle uintptr, symbol func(uintptr, string) (uintptr, error
 			name    string
 			address uintptr
 		}{
-			{"needle_models", models},
-			{"needle_transcribe", transcribe},
-			{"needle_set_audio", setAudio},
-			{"needle_last_error", lastError},
+			{"models", models},
+			{"transcribe", transcribe},
+			{"set_audio", setAudio},
+			{"last_error", lastError},
+			{"embed", embed},
 		} {
 			if capability.address == 0 {
-				return nil, fmt.Errorf("%w: missing %s", ErrUnsupportedABI, capability.name)
+				return nil, fmt.Errorf("%w: missing %s%s", ErrUnsupportedABI, prefix, capability.name)
 			}
-		}
-		if embed == 0 {
-			return nil, fmt.Errorf("%w: missing needle_embed", ErrUnsupportedABI)
 		}
 		// Streaming arrived with engine 3.2.0 as a pair of symbols.
 		if (streamProcess != 0) != (streamStop != 0) {
-			missing := "needle_stream_transcribe_stop"
+			missing := "stream_transcribe_stop"
 			if streamProcess == 0 {
-				missing = "needle_stream_transcribe_process"
+				missing = "stream_transcribe_process"
 			}
-			return nil, fmt.Errorf("%w: missing %s", ErrUnsupportedABI, missing)
+			return nil, fmt.Errorf("%w: missing %s%s", ErrUnsupportedABI, prefix, missing)
 		}
 	}
 	if lastError != 0 {
@@ -56,17 +83,17 @@ func registerNative(handle uintptr, symbol func(uintptr, string) (uintptr, error
 		name   string
 		target any
 	}{
-		{"needle_init", &api.init},
-		{"needle_complete", complete},
-		{"needle_reset", &api.reset},
-		{"needle_load", &api.load},
+		{"init", &api.init},
+		{"complete", complete},
+		{"reset", &api.reset},
+		{"load", &api.load},
 	} {
-		address, err := symbol(handle, binding.name)
+		address, err := symbol(handle, prefix+binding.name)
 		if err != nil {
-			return nil, fmt.Errorf("cactus: resolve %s: %w", binding.name, err)
+			return nil, fmt.Errorf("cactus: resolve %s%s: %w", prefix, binding.name, err)
 		}
 		if address == 0 {
-			return nil, fmt.Errorf("cactus: resolve %s: null symbol", binding.name)
+			return nil, fmt.Errorf("cactus: resolve %s%s: null symbol", prefix, binding.name)
 		}
 		purego.RegisterFunc(binding.target, address)
 	}

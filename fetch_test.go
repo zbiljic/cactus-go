@@ -33,9 +33,9 @@ func TestSupportedPlatforms(t *testing.T) {
 		PlatformWindowsARM64,
 	}
 	libraries := map[string]string{
-		"darwin":  "libneedle3.dylib",
-		"linux":   "libneedle3.so",
-		"windows": "libneedle3.dll",
+		"darwin":  "libcactus.dylib",
+		"linux":   "libcactus.so",
+		"windows": "libcactus.dll",
 	}
 	if got := SupportedPlatforms(); !reflect.DeepEqual(got, want) {
 		t.Fatalf("SupportedPlatforms() = %#v, want %#v", got, want)
@@ -52,11 +52,12 @@ func TestSupportedPlatforms(t *testing.T) {
 		if err != nil || len(checksum) != sha256.Size {
 			t.Fatalf("checksum for %s = %q, want %d-byte hex: %v", platform, artifact.checksum, sha256.Size, err)
 		}
-		if !strings.HasPrefix(artifact.filename, "cactus_needle-"+EngineVersion+"-") {
-			t.Errorf("filename for %s = %q", platform, artifact.filename)
+		prefix := "releases/" + EngineVersion + "/python/cactus_runtime-" + EngineVersion + "-py3-none-"
+		if artifact.repo != "Cactus-Compute/cactus" || !strings.HasPrefix(artifact.path, prefix) || artifact.size <= 0 {
+			t.Errorf("artifact for %s = %s@%s/%s (%d bytes)", platform, artifact.repo, artifact.revision, artifact.path, artifact.size)
 		}
 		libraryName := libraries[strings.SplitN(string(platform), "-", 2)[0]]
-		if artifact.libraryName != libraryName || artifact.archivePath != "needle/"+libraryName {
+		if artifact.libraryName != libraryName || artifact.archivePath != "cactus/"+libraryName {
 			t.Errorf("library for %s = %q / %q", platform, artifact.archivePath, artifact.libraryName)
 		}
 	}
@@ -100,6 +101,7 @@ func TestFetchArtifactDownloadsVerifiesAndCaches(t *testing.T) {
 	body := testWheel(t, archivePath, []byte(libraryContents))
 	digest := sha256.Sum256(body)
 	artifact := engineArtifact{
+		size:        int64(len(body)),
 		checksum:    hex.EncodeToString(digest[:]),
 		archivePath: archivePath,
 		libraryName: "libneedle.test",
@@ -233,9 +235,17 @@ func TestDownloadAttemptRejectsChecksumMismatch(t *testing.T) {
 	if err := os.WriteFile(destination, nil, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	err := downloadAttempt(context.Background(), server.Client(), server.URL, destination, strings.Repeat("0", 64))
+	err := downloadAttempt(context.Background(), server.Client(), server.URL, destination, 10, strings.Repeat("0", 64))
 	if err == nil || !strings.Contains(err.Error(), "checksum mismatch") {
 		t.Fatalf("downloadAttempt() error = %v", err)
+	}
+	err = downloadAttempt(context.Background(), server.Client(), server.URL, destination, 9, strings.Repeat("0", 64))
+	if err == nil || !strings.Contains(err.Error(), "size mismatch") {
+		t.Fatalf("downloadAttempt() oversized error = %v", err)
+	}
+	err = downloadAttempt(context.Background(), server.Client(), server.URL, destination, 11, strings.Repeat("0", 64))
+	if err == nil || !strings.Contains(err.Error(), "size mismatch") {
+		t.Fatalf("downloadAttempt() truncated error = %v", err)
 	}
 }
 
@@ -258,7 +268,7 @@ func TestDownloadArtifactRetriesTransientFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := downloadArtifact(
-		context.Background(), server.Client(), server.URL, destination, hex.EncodeToString(digest[:]),
+		context.Background(), server.Client(), server.URL, destination, int64(len(body)), hex.EncodeToString(digest[:]),
 	); err != nil {
 		t.Fatalf("downloadArtifact() error = %v", err)
 	}
@@ -292,14 +302,21 @@ func TestArtifactURLPinsRevision(t *testing.T) {
 		for _, platform := range SupportedPlatforms() {
 			artifact := release.artifacts[platform]
 			want := fmt.Sprintf(
-				"https://huggingface.co/%s/resolve/%s/python/%s?download=true",
-				release.repo,
-				release.revision,
-				artifact.filename,
+				"https://huggingface.co/%s/resolve/%s/%s?download=true",
+				artifact.repo,
+				artifact.revision,
+				artifact.path,
 			)
-			if got := artifactURL(release, artifact); got != want || strings.Contains(got, "/main/") {
+			if got := artifactURL(artifact); got != want || len(artifact.revision) != 40 || !strings.Contains(got, "/python/") {
 				t.Errorf("artifactURL(%s) = %q, want %q", platform, got, want)
 			}
+		}
+	}
+	for _, weights := range []engineArtifact{baseWeights, speechWeights} {
+		got := artifactURL(weights)
+		if len(weights.revision) != 40 || weights.size <= 0 || strings.Contains(got, "/python/") ||
+			got != "https://huggingface.co/"+weights.repo+"/resolve/"+weights.revision+"/"+weights.path+"?download=true" {
+			t.Errorf("weights URL = %q", got)
 		}
 	}
 }
@@ -343,8 +360,9 @@ func TestFetchWeightsAndGenerationCacheIsolation(t *testing.T) {
 	body := []byte{0x84, 0x2a, 0xe1, 0x05, 1}
 	digest := sha256.Sum256(body)
 	artifact := engineArtifact{
-		filename:    "needle3.cact",
+		path:        "needle3.cact",
 		libraryName: "needle3.cact",
+		size:        int64(len(body)),
 		checksum:    hex.EncodeToString(digest[:]),
 	}
 	var requests atomic.Int32
@@ -397,10 +415,6 @@ func TestFetchWeightsAndGenerationCacheIsolation(t *testing.T) {
 		if err != nil || path != paths[generation] || paths[2] == paths[3] {
 			t.Fatalf("cache paths=%v got=%s err=%v", paths, path, err)
 		}
-	}
-	release, _ := releaseFor(3)
-	if strings.Contains(artifactURL(release, baseWeights), "/python/") {
-		t.Fatal("weights URL points inside python/")
 	}
 	for _, generation := range []int{-1, 1, 4} {
 		if _, err := FetchEngine(context.Background(), FetchOptions{Generation: generation}); err == nil {

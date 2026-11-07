@@ -2,7 +2,7 @@
 
 `NewWhistle` loads the pinned ~16.9 MB `whistle.cact` archive from
 [Cactus-Compute/whistle](https://huggingface.co/Cactus-Compute/whistle) and uses the
-Needle 3 engine. Speech weights are fetched only when requested; standalone
+generation 3 Cactus engine. Speech weights are fetched only when requested; standalone
 transcription does not require text weights.
 
 ## Transcription
@@ -55,9 +55,9 @@ tail, err := live.Stop(ctx)
 The engine holds one stream per process. While a stream is open, other
 speech calls, a second stream, and loading different speech weights return
 `ErrStreamActive`; a failed `Process` ends the stream, and `Close` on its
-Whistle ends it too. Streaming needs engine 3.2 or newer; older libraries
-return `ErrSpeechUnsupported`. Pass `-stream` to the [PCM example](../examples/transcribe)
-to see it on a file.
+Whistle ends it too. Streaming needs Cactus 4 or a Needle 3.2 or newer
+library; older libraries return `ErrSpeechUnsupported`. Pass `-stream` to the
+[PCM example](../examples/transcribe) to see it on a file.
 
 ## Audio tool calling
 
@@ -77,7 +77,7 @@ stateful agents retain context for manual tool-result continuations.
 
 ## Runtime and custom weights
 
-Text and speech share the same serialized Needle 3 runtime and library path.
+Text and speech share the same serialized generation 3 runtime and library path.
 Loading or switching speech models preserves the active text conversation;
 switching text agents follows the existing reset rules. Audio options are
 cleared after each completion. An in-progress native call cannot be interrupted

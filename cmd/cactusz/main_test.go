@@ -420,7 +420,7 @@ func TestVersion(t *testing.T) {
 func TestDoctorWeightsSelectGeneration(t *testing.T) {
 	t.Setenv("NEEDLE_LIB_PATH", "")
 	t.Setenv("NEEDLE2_LIB_PATH", "")
-	t.Setenv("NEEDLE3_LIB_PATH", "")
+	t.Setenv("CACTUS_LIB_PATH", "")
 	cache := t.TempDir()
 	weights := filepath.Join(cache, "custom.cact")
 	if err := os.WriteFile(weights, []byte{0x83, 0x2a, 0xe1, 0x05}, 0o600); err != nil {

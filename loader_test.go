@@ -12,8 +12,16 @@ import (
 )
 
 func TestRegisterNativeABI(t *testing.T) {
-	for _, modern := range []bool{false, true} {
-		t.Run(map[bool]string{false: "legacy", true: "audio"}[modern], func(t *testing.T) {
+	for _, variant := range []struct {
+		name, prefix string
+		modern       bool
+	}{
+		{"needle-legacy", "needle_", false},
+		{"needle-audio", "needle_", true},
+		{"cactus", "cactus_", true},
+	} {
+		prefix, modern := variant.prefix, variant.modern
+		t.Run(variant.name, func(t *testing.T) {
 			calls := 0
 			var gotInput string
 			var gotTokens, gotCapacity, gotSamples int32
@@ -42,19 +50,19 @@ func TestRegisterNativeABI(t *testing.T) {
 				return 7
 			}
 			symbols := map[string]uintptr{
-				"needle_init":     purego.NewCallback(func(*byte, *byte, *byte) int32 { return 0 }),
-				"needle_complete": purego.NewCallback(complete),
-				"needle_reset":    purego.NewCallback(func() {}),
-				"needle_load":     purego.NewCallback(func(*byte, uint64) int32 { return 0 }),
-				"needle_embed":    purego.NewCallback(embed),
+				prefix + "init":     purego.NewCallback(func(*byte, *byte, *byte) int32 { return 0 }),
+				prefix + "complete": purego.NewCallback(complete),
+				prefix + "reset":    purego.NewCallback(func() {}),
+				prefix + "load":     purego.NewCallback(func(*byte, uint64) int32 { return 0 }),
+				prefix + "embed":    purego.NewCallback(embed),
 			}
 			if modern {
-				symbols["needle_complete"] = purego.NewCallback(func(input *byte, pcm *float32, samples, tokens int32, output *byte, capacity int32) int32 {
+				symbols[prefix+"complete"] = purego.NewCallback(func(input *byte, pcm *float32, samples, tokens int32, output *byte, capacity int32) int32 {
 					gotPCM, gotSamples = pcm, samples
 					return complete(input, tokens, output, capacity)
 				})
-				symbols["needle_models"] = 1 // Probed, never called during registration.
-				symbols["needle_transcribe"] = purego.NewCallback(func(pcm *float32, samples int32, language, keywords *byte, timestamps int32, output *byte, capacity int32) int32 {
+				symbols[prefix+"models"] = 1 // Probed, never called during registration.
+				symbols[prefix+"transcribe"] = purego.NewCallback(func(pcm *float32, samples int32, language, keywords *byte, timestamps int32, output *byte, capacity int32) int32 {
 					transcriptions++
 					if pcm == nil || samples != 2 || *pcm != 0.25 || readCString(language) != "en" || readCString(keywords) != "Paris\nAda" || timestamps != 1 || capacity != 32 {
 						t.Error("incorrect seven-argument transcription ABI")
@@ -62,7 +70,7 @@ func TestRegisterNativeABI(t *testing.T) {
 					copy(unsafe.Slice(output, capacity), "speech\x00")
 					return 17
 				})
-				symbols["needle_set_audio"] = purego.NewCallback(func(language, keywords *byte, timestamps int32) {
+				symbols[prefix+"set_audio"] = purego.NewCallback(func(language, keywords *byte, timestamps int32) {
 					audioSettings++
 					if audioSettings == 1 && (readCString(language) != "en" || readCString(keywords) != "Paris\nAda" || timestamps != 1) {
 						t.Error("incorrect three-argument audio options ABI")
@@ -71,13 +79,13 @@ func TestRegisterNativeABI(t *testing.T) {
 						t.Error("audio options were not cleared")
 					}
 				})
-				symbols["needle_embed"] = purego.NewCallback(func(input *byte, pcm *float32, samples int32, output *float32, capacity int32) int32 {
+				symbols[prefix+"embed"] = purego.NewCallback(func(input *byte, pcm *float32, samples int32, output *float32, capacity int32) int32 {
 					if pcm != nil || samples != 0 {
 						t.Error("text embedding received audio arguments")
 					}
 					return embed(input, output, capacity)
 				})
-				symbols["needle_stream_transcribe_process"] = purego.NewCallback(func(pcm *float32, samples int32, language, keywords *byte, output *byte, capacity int32) int32 {
+				symbols[prefix+"stream_transcribe_process"] = purego.NewCallback(func(pcm *float32, samples int32, language, keywords *byte, output *byte, capacity int32) int32 {
 					streams++
 					if pcm == nil || samples != 2 || *pcm != 0.25 || readCString(language) != "en" || readCString(keywords) != "Paris\nAda" || capacity != 32 {
 						t.Error("incorrect six-argument stream ABI")
@@ -85,7 +93,7 @@ func TestRegisterNativeABI(t *testing.T) {
 					copy(unsafe.Slice(output, capacity), "step\x00")
 					return 3
 				})
-				symbols["needle_stream_transcribe_stop"] = purego.NewCallback(func(output *byte, capacity int32) int32 {
+				symbols[prefix+"stream_transcribe_stop"] = purego.NewCallback(func(output *byte, capacity int32) int32 {
 					streams++
 					if capacity != 32 {
 						t.Error("incorrect stream stop ABI")
@@ -94,7 +102,7 @@ func TestRegisterNativeABI(t *testing.T) {
 					return 0
 				})
 				diagnostic := []byte("native detail\x00")
-				symbols["needle_last_error"] = purego.NewCallback(func() *byte { return &diagnostic[0] })
+				symbols[prefix+"last_error"] = purego.NewCallback(func() *byte { return &diagnostic[0] })
 			}
 			resolve := func(_ uintptr, name string) (uintptr, error) {
 				if address, ok := symbols[name]; ok {
@@ -149,7 +157,7 @@ func TestRegisterNativeABI(t *testing.T) {
 			}
 			for _, name := range names {
 				address := symbols[name]
-				if name == "needle_embed" && !modern {
+				if name == prefix+"embed" && !modern {
 					delete(symbols, name)
 					legacy, err := registerNative(42, resolve)
 					if err != nil || legacy.embed != nil {
@@ -168,16 +176,26 @@ func TestRegisterNativeABI(t *testing.T) {
 				}
 				symbols[name] = address
 			}
-			if modern {
+			if prefix == "needle_" && modern {
 				// Engine 3.1 has speech without the streaming pair.
-				process, stop := symbols["needle_stream_transcribe_process"], symbols["needle_stream_transcribe_stop"]
-				delete(symbols, "needle_stream_transcribe_process")
-				delete(symbols, "needle_stream_transcribe_stop")
+				process, stop := symbols[prefix+"stream_transcribe_process"], symbols[prefix+"stream_transcribe_stop"]
+				delete(symbols, prefix+"stream_transcribe_process")
+				delete(symbols, prefix+"stream_transcribe_stop")
 				older, err := registerNative(42, resolve)
 				if err != nil || older.streamProcess != nil || older.streamStop != nil || older.transcribe == nil {
 					t.Fatalf("engine without streaming: api=%+v err=%v", older, err)
 				}
-				symbols["needle_stream_transcribe_process"], symbols["needle_stream_transcribe_stop"] = process, stop
+				symbols[prefix+"stream_transcribe_process"], symbols[prefix+"stream_transcribe_stop"] = process, stop
+			}
+			if prefix == "cactus_" {
+				// Cactus 4 always exports the streaming pair, so its absence is an error.
+				process, stop := symbols[prefix+"stream_transcribe_process"], symbols[prefix+"stream_transcribe_stop"]
+				delete(symbols, prefix+"stream_transcribe_process")
+				delete(symbols, prefix+"stream_transcribe_stop")
+				if _, err := registerNative(42, resolve); !errors.Is(err, ErrUnsupportedABI) {
+					t.Fatalf("cactus engine without streaming: %v", err)
+				}
+				symbols[prefix+"stream_transcribe_process"], symbols[prefix+"stream_transcribe_stop"] = process, stop
 			}
 		})
 	}
@@ -185,13 +203,15 @@ func TestRegisterNativeABI(t *testing.T) {
 
 func TestRegisterNativeRejectsPartialABI(t *testing.T) {
 	t.Parallel()
-	resolve := func(_ uintptr, name string) (uintptr, error) {
-		if name == "needle_models" {
-			return 1, nil
+	for _, present := range []string{"needle_models", "cactus_models", "cactus_init"} {
+		resolve := func(_ uintptr, name string) (uintptr, error) {
+			if name == present {
+				return 1, nil
+			}
+			return 0, nil
 		}
-		return 0, nil
-	}
-	if _, err := registerNative(0, resolve); !errors.Is(err, ErrUnsupportedABI) {
-		t.Fatalf("registerNative() error = %v", err)
+		if _, err := registerNative(0, resolve); !errors.Is(err, ErrUnsupportedABI) {
+			t.Fatalf("registerNative(%s) error = %v", present, err)
+		}
 	}
 }

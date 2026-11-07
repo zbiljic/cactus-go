@@ -206,7 +206,7 @@ func addAgentFlags(flags *flag.FlagSet, options *agentOptions) {
 		&options.generation, "generation", cactus.DefaultGeneration,
 		"model generation (2 or 3); custom weights take precedence",
 	)
-	flags.StringVar(&options.libraryPath, "library", "", "path to libneedle shared library")
+	flags.StringVar(&options.libraryPath, "library", "", "path to the engine shared library")
 	flags.StringVar(&options.cacheDir, "cache", "", "engine cache directory")
 	flags.StringVar(&options.weightsPath, "weights", "", "path to tuned .cact weights")
 	flags.StringVar(&options.toolsPath, "tools", "", "path to a JSON array of tool schemas")
@@ -366,7 +366,7 @@ func (a *application) runDoctor(ctx context.Context, args []string) error {
 		"generation", cactus.DefaultGeneration,
 		"model generation (2 or 3); custom weights take precedence",
 	)
-	libraryPath := flags.String("library", "", "path to libneedle shared library")
+	libraryPath := flags.String("library", "", "path to the engine shared library")
 	cacheDir := flags.String("cache", "", "engine cache directory")
 	weightsPath := flags.String("weights", "", "path to tuned .cact weights")
 	bufferSize := flags.Int("buffer-size", 0, "native response buffer size")
@@ -450,11 +450,15 @@ func (a *application) findLibrary(
 	}
 	path, source := configured, "--library"
 	if path == "" {
-		source = fmt.Sprintf("NEEDLE%d_LIB_PATH", generation)
-		path = os.Getenv(source)
-	}
-	if path == "" && generation == 2 {
-		path, source = os.Getenv(cactus.EnvLibraryPath), cactus.EnvLibraryPath
+		variables, err := cactus.LibraryPathEnv(generation)
+		if err != nil {
+			return "", "", err
+		}
+		for _, variable := range variables {
+			if path, source = os.Getenv(variable), variable; path != "" {
+				break
+			}
+		}
 	}
 	if path == "" {
 		cached, err := a.deps.cachedEngine(cactus.FetchOptions{

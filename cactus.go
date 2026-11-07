@@ -103,8 +103,9 @@ type Config struct {
 	BufferSize    int
 
 	// LibraryPath selects a trusted shared library for the selected generation.
-	// When empty, New checks NEEDLE2_LIB_PATH or NEEDLE3_LIB_PATH, then fetches
-	// the engine. NEEDLE_LIB_PATH is a legacy override for generation 2 only.
+	// When empty, New checks the variables named by LibraryPathEnv
+	// (CACTUS_LIB_PATH for generation 3; NEEDLE2_LIB_PATH, then
+	// NEEDLE_LIB_PATH for generation 2), then fetches the engine.
 	LibraryPath string
 	// CacheDir overrides the engine and base-weight download directory.
 	CacheDir string

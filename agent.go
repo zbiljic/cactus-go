@@ -153,13 +153,14 @@ func prepareAgent(config Config) (*Agent, error) {
 func resolveLibraryPath(ctx context.Context, config Config) (string, error) {
 	path := config.LibraryPath
 	if path == "" {
-		release, err := releaseFor(config.Generation)
+		variables, err := LibraryPathEnv(config.Generation)
 		if err != nil {
 			return "", err
 		}
-		path = os.Getenv(fmt.Sprintf("NEEDLE%d_LIB_PATH", release.generation))
-		if path == "" && release.generation == 2 {
-			path = os.Getenv(EnvLibraryPath)
+		for _, variable := range variables {
+			if path = os.Getenv(variable); path != "" {
+				break
+			}
 		}
 	}
 	if path != "" {

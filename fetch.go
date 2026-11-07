@@ -18,15 +18,24 @@ import (
 )
 
 const (
-	// EngineVersion is the default (Needle 3) native engine version.
-	EngineVersion = "3.3.1"
-	// EnvLibraryPath overrides Needle 2 engine discovery for legacy clients.
-	EnvLibraryPath = "NEEDLE_LIB_PATH"
+	// EngineVersion is the default (generation 3) Cactus engine version.
+	EngineVersion = "4.0.0"
 
-	huggingFaceRepo     = "Cactus-Compute/needle3"
-	huggingFaceRevision = "93e88ede867e4311c39151285e74df513e4b835b"
-	maxArtifactSize     = 64 << 20
+	maxArtifactSize = 64 << 20
 )
+
+// LibraryPathEnv returns the environment variables that override engine
+// discovery for a generation (zero means 3), in lookup order.
+func LibraryPathEnv(generation int) ([]string, error) {
+	release, err := releaseFor(generation)
+	if err != nil {
+		return nil, err
+	}
+	if release.generation == 2 {
+		return []string{"NEEDLE2_LIB_PATH", "NEEDLE_LIB_PATH"}, nil
+	}
+	return []string{"CACTUS_LIB_PATH"}, nil
+}
 
 // Platform identifies a downloadable desktop engine build.
 type Platform string
@@ -52,134 +61,108 @@ type FetchOptions struct {
 	Client     *http.Client
 }
 
+// engineArtifact pins one file published on Hugging Face at a fixed commit.
 type engineArtifact struct {
-	filename    string
-	checksum    string
+	repo, revision, path string
+	size                 int64
+	checksum             string
+	// archivePath is the library inside a wheel; empty for weights.
 	archivePath string
+	// libraryName is the installed file name in the cache directory.
 	libraryName string
 }
 
+func needle2Wheel(tag, library string, size int64, checksum string) engineArtifact {
+	return engineArtifact{
+		repo:        "Cactus-Compute/needle2",
+		revision:    "32e9e3a93b205f786929697446ae669cf0a84579",
+		path:        "python/cactus_needle-2.0.4-py3-none-" + tag + ".whl",
+		size:        size,
+		checksum:    checksum,
+		archivePath: "needle/" + library,
+		libraryName: library,
+	}
+}
+
 var artifactsV2 = map[Platform]engineArtifact{
-	PlatformDarwinARM64: {
-		filename:    "cactus_needle-2.0.4-py3-none-macosx_11_0_arm64.whl",
-		checksum:    "abae4cca0a4d84ec73da4bde18803b9be812a9209e48fb7fa372002ebaa60265",
-		archivePath: "needle/libneedle.dylib",
-		libraryName: "libneedle.dylib",
-	},
-	PlatformDarwinAMD64: {
-		filename:    "cactus_needle-2.0.4-py3-none-macosx_11_0_x86_64.whl",
-		checksum:    "071e93d996021b4f6b5bee055777cd81be9f6963d2565115ec461b9f71c7245e",
-		archivePath: "needle/libneedle.dylib",
-		libraryName: "libneedle.dylib",
-	},
-	PlatformLinuxARM64: {
-		filename:    "cactus_needle-2.0.4-py3-none-manylinux2014_aarch64.whl",
-		checksum:    "e655a13f9d3239e601936ff2d0f6acafd8f6020aaf7b1862ce4fceefacfd6556",
-		archivePath: "needle/libneedle.so",
-		libraryName: "libneedle.so",
-	},
-	PlatformLinuxAMD64: {
-		filename:    "cactus_needle-2.0.4-py3-none-manylinux2014_x86_64.whl",
-		checksum:    "13a84e6c73095fd175b11d46a30a984b62123d94421b769c107074aff7f65c2b",
-		archivePath: "needle/libneedle.so",
-		libraryName: "libneedle.so",
-	},
-	PlatformLinuxARM64Musl: {
-		filename:    "cactus_needle-2.0.4-py3-none-musllinux_1_2_aarch64.whl",
-		checksum:    "eaacaf7925e596fd7d18814bece02770b250039c0b92bbdd899967beb012c114",
-		archivePath: "needle/libneedle.so",
-		libraryName: "libneedle.so",
-	},
-	PlatformLinuxAMD64Musl: {
-		filename:    "cactus_needle-2.0.4-py3-none-musllinux_1_2_x86_64.whl",
-		checksum:    "f94633df433643a3b9b20b84ea19f12b423809d112ba2421d87aad8b07ca3277",
-		archivePath: "needle/libneedle.so",
-		libraryName: "libneedle.so",
-	},
-	PlatformWindowsAMD64: {
-		filename:    "cactus_needle-2.0.4-py3-none-win_amd64.whl",
-		checksum:    "b4803501a109af3782efe112be27515947c108ecec3bf85703ae6b97bb7210e1",
-		archivePath: "needle/libneedle.dll",
-		libraryName: "libneedle.dll",
-	},
-	PlatformWindowsARM64: {
-		filename:    "cactus_needle-2.0.4-py3-none-win_arm64.whl",
-		checksum:    "e03d1301f37dccd468a9b6619c31f82e2c428465ea7c055bf21214feff9b7869",
-		archivePath: "needle/libneedle.dll",
-		libraryName: "libneedle.dll",
-	},
+	PlatformDarwinARM64: needle2Wheel("macosx_11_0_arm64", "libneedle.dylib", 13323841,
+		"abae4cca0a4d84ec73da4bde18803b9be812a9209e48fb7fa372002ebaa60265"),
+	PlatformDarwinAMD64: needle2Wheel("macosx_11_0_x86_64", "libneedle.dylib", 13217806,
+		"071e93d996021b4f6b5bee055777cd81be9f6963d2565115ec461b9f71c7245e"),
+	PlatformLinuxARM64: needle2Wheel("manylinux2014_aarch64", "libneedle.so", 13290005,
+		"e655a13f9d3239e601936ff2d0f6acafd8f6020aaf7b1862ce4fceefacfd6556"),
+	PlatformLinuxAMD64: needle2Wheel("manylinux2014_x86_64", "libneedle.so", 13283977,
+		"13a84e6c73095fd175b11d46a30a984b62123d94421b769c107074aff7f65c2b"),
+	PlatformLinuxARM64Musl: needle2Wheel("musllinux_1_2_aarch64", "libneedle.so", 13292645,
+		"eaacaf7925e596fd7d18814bece02770b250039c0b92bbdd899967beb012c114"),
+	PlatformLinuxAMD64Musl: needle2Wheel("musllinux_1_2_x86_64", "libneedle.so", 13286334,
+		"f94633df433643a3b9b20b84ea19f12b423809d112ba2421d87aad8b07ca3277"),
+	PlatformWindowsAMD64: needle2Wheel("win_amd64", "libneedle.dll", 13300371,
+		"b4803501a109af3782efe112be27515947c108ecec3bf85703ae6b97bb7210e1"),
+	PlatformWindowsARM64: needle2Wheel("win_arm64", "libneedle.dll", 13269152,
+		"e03d1301f37dccd468a9b6619c31f82e2c428465ea7c055bf21214feff9b7869"),
+}
+
+// cactusWheel pins a runtime wheel from the Cactus engine release. Sizes and
+// checksums come from releases/4.0.0/manifest.json (sha256
+// b6a39fb21bc77780c029c45d4cc206b60f883146fa2dbc28bfcc9995fe72b871).
+func cactusWheel(tag, library string, size int64, checksum string) engineArtifact {
+	return engineArtifact{
+		repo:     "Cactus-Compute/cactus",
+		revision: "1a028f5a3972b67dd8d8752f882113d475e7ec4c",
+		path: "releases/" + EngineVersion + "/python/cactus_runtime-" + EngineVersion +
+			"-py3-none-" + tag + ".whl",
+		size:        size,
+		checksum:    checksum,
+		archivePath: "cactus/" + library,
+		libraryName: library,
+	}
 }
 
 var artifacts = map[Platform]engineArtifact{
-	PlatformDarwinARM64: {
-		filename:    "cactus_needle-3.3.1-py3-none-macosx_11_0_arm64.whl",
-		checksum:    "19534f411ad71312031d6df5418d0e55b8d16075c28a217aef4b921349bdfb4a",
-		archivePath: "needle/libneedle3.dylib",
-		libraryName: "libneedle3.dylib",
-	},
-	PlatformDarwinAMD64: {
-		filename:    "cactus_needle-3.3.1-py3-none-macosx_11_0_x86_64.whl",
-		checksum:    "e74ac1204ffe29d75db1215d889ad46c8add39e52042df22cd99c2e37855c273",
-		archivePath: "needle/libneedle3.dylib",
-		libraryName: "libneedle3.dylib",
-	},
-	PlatformLinuxARM64: {
-		filename:    "cactus_needle-3.3.1-py3-none-manylinux2014_aarch64.whl",
-		checksum:    "3128efab8a8cf9f8381a6ea38eee3db66d85746260489563513160940dcbaf63",
-		archivePath: "needle/libneedle3.so",
-		libraryName: "libneedle3.so",
-	},
-	PlatformLinuxAMD64: {
-		filename:    "cactus_needle-3.3.1-py3-none-manylinux2014_x86_64.whl",
-		checksum:    "3de03a183f56e28f8f1945fbbc5048efca0699a7f3ed0d66a244ca7e30442c22",
-		archivePath: "needle/libneedle3.so",
-		libraryName: "libneedle3.so",
-	},
-	PlatformLinuxARM64Musl: {
-		filename:    "cactus_needle-3.3.1-py3-none-musllinux_1_2_aarch64.whl",
-		checksum:    "c5c73a77cdcdde4b614d8e618c0338d1c8c7be6e32f8d5b6c06f27ffa467ce66",
-		archivePath: "needle/libneedle3.so",
-		libraryName: "libneedle3.so",
-	},
-	PlatformLinuxAMD64Musl: {
-		filename:    "cactus_needle-3.3.1-py3-none-musllinux_1_2_x86_64.whl",
-		checksum:    "8d40a1253993426227095e5886294bf0baccace8ec3fce677bc3cc1deacc058a",
-		archivePath: "needle/libneedle3.so",
-		libraryName: "libneedle3.so",
-	},
-	PlatformWindowsAMD64: {
-		filename:    "cactus_needle-3.3.1-py3-none-win_amd64.whl",
-		checksum:    "4e50c5fa983c8737de200d9e96af937dd8135371ca557fe8c7c9eb1adba39f5a",
-		archivePath: "needle/libneedle3.dll",
-		libraryName: "libneedle3.dll",
-	},
-	PlatformWindowsARM64: {
-		filename:    "cactus_needle-3.3.1-py3-none-win_arm64.whl",
-		checksum:    "4387a5fbca30b4bd7da6b8bb7674a888c26d507f0da2723885f64e9a39f3f437",
-		archivePath: "needle/libneedle3.dll",
-		libraryName: "libneedle3.dll",
-	},
+	PlatformDarwinARM64: cactusWheel("macosx_11_0_arm64", "libcactus.dylib", 720571,
+		"782a43480285bf36e7dda947f50496dc597dceb26a8f8f9406d89fbe7ce96a1c"),
+	PlatformDarwinAMD64: cactusWheel("macosx_11_0_x86_64", "libcactus.dylib", 780485,
+		"ba674f62f53d91328d0b925ba9c179c15f6fef04865b334ac9c505d83d5932da"),
+	PlatformLinuxARM64: cactusWheel("manylinux2014_aarch64", "libcactus.so", 821557,
+		"4125d3630028409a11ba460af9561e2dc2010d777e0ff7413528f6c5dd43a67e"),
+	PlatformLinuxAMD64: cactusWheel("manylinux2014_x86_64", "libcactus.so", 854907,
+		"6b6f1c75acf8eb35c465bfd1f845351448c33804933c806d3406e2be35a40e01"),
+	PlatformLinuxARM64Musl: cactusWheel("musllinux_1_2_aarch64", "libcactus.so", 820401,
+		"265d9710d3ad0a5512041f56ee2cd12881d9aac28b037686de84683528df2807"),
+	PlatformLinuxAMD64Musl: cactusWheel("musllinux_1_2_x86_64", "libcactus.so", 855569,
+		"03d62a86e2f41a47415b2f5f8fd75e2cfebfe839d80f1d72d99120722a0f12b1"),
+	PlatformWindowsAMD64: cactusWheel("win_amd64", "libcactus.dll", 863759,
+		"fc7ffdb7bc55e2e25b3c62a67a6edcd337026fe0d8fb8facc3a359df85399c12"),
+	PlatformWindowsARM64: cactusWheel("win_arm64", "libcactus.dll", 783427,
+		"9e2e0a44585aea5927108cee570dee50b27972b4e5f6791c42a5896bd0d4f0be"),
 }
 
 var baseWeights = engineArtifact{
-	filename:    "needle3.cact",
-	libraryName: "needle3.cact",
+	repo:        "Cactus-Compute/needle3",
+	revision:    "d6c7d6a2e9655505e0f8e23339356dd1705900eb",
+	path:        "needle3.cact",
+	size:        35335380,
 	checksum:    "c9d915eca282ed42d1a09b143b592adb4cc6744ffe2d294adf5cfc5548170c38",
+	libraryName: "needle3.cact",
 }
 
 var speechWeights = engineArtifact{
-	filename:    "whistle.cact",
-	libraryName: "whistle.cact",
+	repo:        "Cactus-Compute/whistle",
+	revision:    "741118687e1f008f06d1351a402a731274789790",
+	path:        "whistle.cact",
+	size:        16919407,
 	checksum:    "b6e02f048568ac5d01a2042556c658061e699acbc0aa2a1439f52f3d461dffeb",
+	libraryName: "whistle.cact",
 }
 
 // engineRelease pins one downloadable release: the engine wheels per platform
-// and, when the engine needs them, the weights archive published beside them.
+// and, when the engine needs them, the base weights it loads.
 type engineRelease struct {
-	generation              int
-	version, repo, revision string
-	artifacts               map[Platform]engineArtifact
-	// weights is the base archive loaded with needle_load; empty for Needle 2.
+	generation int
+	version    string
+	artifacts  map[Platform]engineArtifact
+	// weights is the base archive loaded with cactus_load; empty for Needle 2.
 	weights engineArtifact
 }
 
@@ -187,25 +170,19 @@ var (
 	releaseV2 = engineRelease{
 		generation: 2,
 		version:    "2.0.4",
-		repo:       "Cactus-Compute/needle2",
-		revision:   "32e9e3a93b205f786929697446ae669cf0a84579",
 		artifacts:  artifactsV2,
 	}
 	releaseV3 = engineRelease{
 		generation: 3,
 		version:    EngineVersion,
-		repo:       huggingFaceRepo,
-		revision:   huggingFaceRevision,
 		artifacts:  artifacts,
 		weights:    baseWeights,
 	}
-	// whistleRelease pins the speech weights, which run on the Needle 3 engine
-	// and share its cache directory.
+	// whistleRelease pins the speech weights, which run on the generation 3
+	// engine and share its cache directory.
 	whistleRelease = engineRelease{
 		generation: 3,
 		version:    EngineVersion,
-		repo:       "Cactus-Compute/whistle",
-		revision:   "b358ddadd89b7a713b5aa131f23032d3cca1b251",
 		artifacts:  artifacts,
 		weights:    speechWeights,
 	}
@@ -324,7 +301,7 @@ func FetchEngine(ctx context.Context, options FetchOptions) (string, error) {
 	return path, nil
 }
 
-// FetchWhistle caches the Needle 3 engine and Whistle speech weights for offline
+// FetchWhistle caches the generation 3 engine and Whistle speech weights for offline
 // use. It returns the library path and does not download text weights.
 // Generation must be zero or 3; Platform and CacheDir follow FetchEngine.
 func FetchWhistle(ctx context.Context, options FetchOptions) (string, error) {
@@ -372,7 +349,7 @@ func fetchBaseWeights(ctx context.Context, options FetchOptions) (string, error)
 	if err != nil {
 		return "", err
 	}
-	if release.weights.filename == "" {
+	if release.weights.path == "" {
 		return "", nil
 	}
 	return fetchWithOptions(ctx, options, release, release.weights)
@@ -399,7 +376,7 @@ func fetchWithOptions(
 
 	fetchMu.Lock()
 	defer fetchMu.Unlock()
-	return fetchArtifact(ctx, client, cacheDir, artifact, artifactURL(release, artifact))
+	return fetchArtifact(ctx, client, cacheDir, artifact, artifactURL(artifact))
 }
 
 func fetchArtifact(
@@ -428,7 +405,7 @@ func fetchArtifact(
 	}
 	defer os.Remove(wheelPath)
 
-	if err := downloadArtifact(ctx, client, url, wheelPath, artifact.checksum); err != nil {
+	if err := downloadArtifact(ctx, client, url, wheelPath, artifact.size, artifact.checksum); err != nil {
 		return "", err
 	}
 	if artifact.archivePath == "" {
@@ -453,7 +430,7 @@ func fetchArtifact(
 	return target, nil
 }
 
-func downloadArtifact(ctx context.Context, client *http.Client, url, destination, checksum string) error {
+func downloadArtifact(ctx context.Context, client *http.Client, url, destination string, size int64, checksum string) error {
 	var lastErr error
 	for attempt := range 3 {
 		if attempt > 0 {
@@ -464,7 +441,7 @@ func downloadArtifact(ctx context.Context, client *http.Client, url, destination
 			case <-time.After(delay):
 			}
 		}
-		lastErr = downloadAttempt(ctx, client, url, destination, checksum)
+		lastErr = downloadAttempt(ctx, client, url, destination, size, checksum)
 		if lastErr == nil {
 			return nil
 		}
@@ -475,7 +452,7 @@ func downloadArtifact(ctx context.Context, client *http.Client, url, destination
 	return fmt.Errorf("cactus: download artifact after 3 attempts: %w", lastErr)
 }
 
-func downloadAttempt(ctx context.Context, client *http.Client, url, destination, checksum string) error {
+func downloadAttempt(ctx context.Context, client *http.Client, url, destination string, size int64, checksum string) error {
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return err
@@ -496,7 +473,7 @@ func downloadAttempt(ctx context.Context, client *http.Client, url, destination,
 		return err
 	}
 	hash := sha256.New()
-	written, copyErr := io.Copy(io.MultiWriter(file, hash), io.LimitReader(response.Body, maxArtifactSize+1))
+	written, copyErr := io.Copy(io.MultiWriter(file, hash), io.LimitReader(response.Body, size+1))
 	closeErr := file.Close()
 	if copyErr != nil {
 		return copyErr
@@ -504,8 +481,8 @@ func downloadAttempt(ctx context.Context, client *http.Client, url, destination,
 	if closeErr != nil {
 		return closeErr
 	}
-	if written > maxArtifactSize {
-		return fmt.Errorf("artifact exceeds %d bytes", maxArtifactSize)
+	if written != size {
+		return fmt.Errorf("size mismatch: got %d bytes, want %d", written, size)
 	}
 	actual := hex.EncodeToString(hash.Sum(nil))
 	if actual != checksum {
@@ -537,7 +514,7 @@ func extractLibrary(wheelPath, cacheDir, target, archivePath string) error {
 	}
 	defer reader.Close()
 
-	temporary, err := os.CreateTemp(cacheDir, ".libneedle-*")
+	temporary, err := os.CreateTemp(cacheDir, ".library-*")
 	if err != nil {
 		return fmt.Errorf("cactus: create temporary library: %w", err)
 	}
@@ -599,16 +576,12 @@ func installedChecksum(path string) (string, error) {
 	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
-func artifactURL(release engineRelease, artifact engineArtifact) string {
-	name := artifact.filename
-	if artifact.archivePath != "" {
-		name = "python/" + name
-	}
+func artifactURL(artifact engineArtifact) string {
 	return fmt.Sprintf(
 		"https://huggingface.co/%s/resolve/%s/%s?download=true",
-		release.repo,
-		release.revision,
-		name,
+		artifact.repo,
+		artifact.revision,
+		artifact.path,
 	)
 }
 
