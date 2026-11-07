@@ -26,6 +26,8 @@ type nativeAPI struct {
 	streamStop    func([]byte, int32) int32
 	setAudio      func(*byte, *byte, int32)
 	embed         func(*byte, []float32, int32) int32
+	describe      func([]byte, int32, int32, *byte, *byte, *byte, []byte, int32) int32
+	models        func() int32
 	lastError     func() string
 	reset         func()
 	load          func([]byte, uint64) int32
@@ -53,6 +55,7 @@ type processRuntime struct {
 	activeBlob    []byte
 	speechWeights string
 	speechBlob    []byte
+	visionWeights string
 	// stream is the open live transcription, which the engine holds one of.
 	stream *Stream
 }

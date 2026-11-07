@@ -6,9 +6,11 @@ import (
 	"slices"
 )
 
+// Model kinds match the engine's cactus_models bitmask.
 const (
 	modelText   = 1
 	modelSpeech = 2
+	modelVision = 4
 )
 
 // A .cact archive, as written by upstream needle/model/export.py, is a header
@@ -66,6 +68,11 @@ const (
 	audioManifestMagic   = 3246
 	audioManifestVersion = 1
 	audioManifestRate    = 9
+
+	// The vision manifest holds 36 float32 values: a magic number and the
+	// vision geometry. It has no layout version field.
+	visionManifestLength = 36
+	visionManifestMagic  = 4721
 )
 
 func cactField(blob []byte, index int) uint64 {
@@ -73,7 +80,8 @@ func cactField(blob []byte, index int) uint64 {
 }
 
 // manifestPosition locates the tensor record after final_norm: the head
-// manifest of a text archive or the audio manifest of a speech archive.
+// manifest of a text archive, the audio manifest of a speech archive or the
+// vision manifest of a Mirage archive.
 func manifestPosition(blob []byte) (directory, count, index uint64, ok bool) {
 	if len(blob) < cactHeaderSize || binary.LittleEndian.Uint32(blob) != needle3WeightsTag {
 		return
@@ -110,8 +118,9 @@ func headCodes(data []byte, n uint64) ([]uint16, bool) {
 	return codes, true
 }
 
-// weightsKind distinguishes text and speech before the engine's load call can replace
-// either process-global model. The shared format tag does not identify the kind.
+// weightsKind distinguishes text, speech and vision archives before the
+// engine's load call can replace a process-global model. The shared format tag
+// does not identify the kind.
 func weightsKind(blob []byte) int {
 	directory, count, index, ok := manifestPosition(blob)
 	if !ok {
@@ -144,10 +153,16 @@ func weightsKind(blob []byte) int {
 	}
 	// Recognize the published version-1 audio manifest only; extend this
 	// classifier when upstream publishes another speech archive layout.
+	value := func(i int) float32 { return math.Float32frombits(binary.LittleEndian.Uint32(data[i*4:])) }
 	if dtype == dtypeFP32 && ndim == 1 && shape == audioManifestLength && size == audioManifestLength*4 && index+1 < count {
-		value := func(i int) float32 { return math.Float32frombits(binary.LittleEndian.Uint32(data[i*4:])) }
 		if value(0) == audioManifestMagic && value(1) == audioManifestVersion && value(audioManifestRate) == SpeechSampleRate {
 			return modelSpeech
+		}
+	}
+	// Likewise, recognize only the published 36-value vision manifest.
+	if dtype == dtypeFP32 && ndim == 1 && shape == visionManifestLength && size == visionManifestLength*4 && index+1 < count {
+		if value(0) == visionManifestMagic {
+			return modelVision
 		}
 	}
 	return 0

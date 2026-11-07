@@ -314,7 +314,7 @@ func TestArtifactURLPinsRevision(t *testing.T) {
 			}
 		}
 	}
-	for _, weights := range []engineArtifact{baseWeights, speechWeights} {
+	for _, weights := range []engineArtifact{baseWeights, speechWeights, visionWeights} {
 		got := artifactURL(weights)
 		if len(weights.revision) != 40 || weights.size <= 0 || weights.size > maxArtifactSize || strings.Contains(got, "/python/") ||
 			got != "https://huggingface.co/"+weights.repo+"/resolve/"+weights.revision+"/"+weights.path+"?download=true" {
@@ -352,15 +352,18 @@ func TestPinnedEngineArtifacts(t *testing.T) {
 					t.Fatalf("FetchEngine() file mode = %v, size = %d", info.Mode(), info.Size())
 				}
 				if generation == 3 {
-					// Speech weights are fetched once per cache; later platforms reuse them.
-					if _, err := FetchWhistle(context.Background(), FetchOptions{
-						Generation: generation,
-						Platform:   platform,
-						CacheDir:   cacheDir,
-					}); err != nil {
-						t.Fatal(err)
+					// Speech and vision weights are fetched once per cache;
+					// later platforms reuse them.
+					for _, fetch := range []func(context.Context, FetchOptions) (string, error){FetchWhistle, FetchMirage} {
+						if _, err := fetch(context.Background(), FetchOptions{
+							Generation: generation,
+							Platform:   platform,
+							CacheDir:   cacheDir,
+						}); err != nil {
+							t.Fatal(err)
+						}
 					}
-					for _, weights := range []engineArtifact{baseWeights, speechWeights} {
+					for _, weights := range []engineArtifact{baseWeights, speechWeights, visionWeights} {
 						info, err := os.Stat(filepath.Join(cacheDir, weights.libraryName))
 						if err != nil || info.Size() != weights.size {
 							t.Fatalf("%s: info=%v err=%v", weights.libraryName, info, err)

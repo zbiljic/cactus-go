@@ -19,7 +19,7 @@ import (
 
 const (
 	// EngineVersion is the Cactus engine version, which runs Needle 3 (the
-	// default generation) and Whistle. Needle 2 keeps its own engine; see
+	// default generation), Whistle and Mirage. Needle 2 keeps its own engine; see
 	// EngineVersionFor.
 	EngineVersion = "4.0.0"
 
@@ -159,6 +159,15 @@ var speechWeights = engineArtifact{
 	libraryName: "whistle.cact",
 }
 
+var visionWeights = engineArtifact{
+	repo:        "Cactus-Compute/mirage",
+	revision:    "76c1e9e53381aca8fc3843c636216c96ff220122",
+	path:        "mirage.cact",
+	size:        21611043,
+	checksum:    "4249a0f7515272ff76b9414bec17d7e7daf84b15b66c7fb4f17fce1e66f9f237",
+	libraryName: "mirage.cact",
+}
+
 // engineRelease pins one downloadable release: the engine wheels per platform
 // and, when the engine needs them, the base weights it loads.
 type engineRelease struct {
@@ -188,6 +197,14 @@ var (
 		version:    EngineVersion,
 		artifacts:  artifacts,
 		weights:    speechWeights,
+	}
+	// mirageRelease pins the vision weights, which also share the Cactus
+	// engine cache directory.
+	mirageRelease = engineRelease{
+		generation: 3,
+		version:    EngineVersion,
+		artifacts:  artifacts,
+		weights:    visionWeights,
 	}
 )
 
@@ -319,6 +336,28 @@ func FetchWhistle(ctx context.Context, options FetchOptions) (string, error) {
 		return "", err
 	}
 	return path, nil
+}
+
+// FetchMirage caches the Cactus engine and Mirage vision weights for offline
+// use. It returns the library path and does not download text or speech
+// weights. Generation must be zero or 3; Platform and CacheDir follow
+// FetchEngine.
+func FetchMirage(ctx context.Context, options FetchOptions) (string, error) {
+	if options.Generation != 0 && options.Generation != 3 {
+		return "", fmt.Errorf("%w: Mirage requires generation 3", ErrUnsupportedGeneration)
+	}
+	path, err := fetchEngineLibrary(ctx, options)
+	if err != nil {
+		return "", err
+	}
+	if _, err := fetchVisionWeights(ctx, options); err != nil {
+		return "", err
+	}
+	return path, nil
+}
+
+func fetchVisionWeights(ctx context.Context, options FetchOptions) (string, error) {
+	return fetchWithOptions(ctx, options, mirageRelease, mirageRelease.weights)
 }
 
 func fetchSpeechWeights(ctx context.Context, options FetchOptions) (string, error) {

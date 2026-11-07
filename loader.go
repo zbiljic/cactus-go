@@ -13,14 +13,15 @@ import (
 var needle2Symbols = []string{"init", "complete", "reset", "load"}
 
 // cactusSymbols is the cactus_* ABI that the Cactus engine exports in full.
-// cactus_describe is bound only when vision support needs it.
 var cactusSymbols = []string{
 	"load", "models", "last_error", "init", "complete", "set_audio", "reset",
 	"embed", "transcribe", "stream_transcribe_process", "stream_transcribe_stop",
+	"describe",
 }
 
 // registerNative binds the ABI for a generation: needle_* for the Needle 2
-// engine and cactus_* for the Cactus engine that runs Needle 3 and Whistle.
+// engine and cactus_* for the Cactus engine that runs Needle 3, Whistle and
+// Mirage.
 // A library missing any symbol of that ABI is rejected.
 func registerNative(
 	handle uintptr,
@@ -65,6 +66,8 @@ func registerNative(
 	purego.RegisterFunc(&api.setAudio, address["set_audio"])
 	purego.RegisterFunc(&api.streamProcess, address["stream_transcribe_process"])
 	purego.RegisterFunc(&api.streamStop, address["stream_transcribe_stop"])
+	purego.RegisterFunc(&api.describe, address["describe"])
+	purego.RegisterFunc(&api.models, address["models"])
 	var embed func(*byte, *float32, int32, []float32, int32) int32
 	purego.RegisterFunc(&embed, address["embed"])
 	api.complete = func(input *byte, tokens int32, output []byte, capacity int32) int32 {

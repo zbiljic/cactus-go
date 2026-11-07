@@ -112,4 +112,4 @@ jobs:
       - name: Test generations together
         env:
           CACTUS_TEST_NATIVE: "1"
-        run: go test -run '^TestNative(Generations|EngineDiagnostics|Embeddings|Whistle)$' -v .
+        run: go test -run '^TestNative(Generations|EngineDiagnostics|Embeddings|Whistle|Mirage)$' -v .

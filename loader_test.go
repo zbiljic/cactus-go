@@ -23,7 +23,7 @@ func TestRegisterNativeABI(t *testing.T) {
 			var gotTokens, gotCapacity, gotSamples int32
 			var gotPCM *float32
 			transcriptions, audioSettings, streams := 0, 0, 0
-			embedCalls := 0
+			embedCalls, describes := 0, 0
 			embed := func(input *byte, output *float32, capacity int32) int32 {
 				embedCalls++
 				if readCString(input) != "hello" {
@@ -56,7 +56,15 @@ func TestRegisterNativeABI(t *testing.T) {
 					gotPCM, gotSamples = pcm, samples
 					return complete(input, tokens, output, capacity)
 				})
-				symbols[prefix+"models"] = 1 // Required, never called during registration.
+				symbols[prefix+"models"] = purego.NewCallback(func() int32 { return 7 })
+				symbols[prefix+"describe"] = purego.NewCallback(func(rgb *byte, width, height int32, options, language, keywords *byte, output *byte, capacity int32) int32 {
+					describes++
+					if rgb == nil || *rgb != 9 || width != 1 || height != 1 || readCString(options) != `{"sections":["scene"]}` || readCString(language) != "en" || readCString(keywords) != "Paris\nAda" || capacity != 32 {
+						t.Error("incorrect eight-argument describe ABI")
+					}
+					copy(unsafe.Slice(output, capacity), "vision\x00")
+					return 5
+				})
 				symbols[prefix+"transcribe"] = purego.NewCallback(func(pcm *float32, samples int32, language, keywords *byte, timestamps int32, output *byte, capacity int32) int32 {
 					transcriptions++
 					if pcm == nil || samples != 2 || *pcm != 0.25 || readCString(language) != "en" || readCString(keywords) != "Paris\nAda" || timestamps != 1 || capacity != 32 {
@@ -141,6 +149,13 @@ func TestRegisterNativeABI(t *testing.T) {
 				if code := api.streamStop(output, 32); code != 0 || string(output[:4]) != "tail" || streams != 2 {
 					t.Fatalf("stream stop ABI: code=%d output=%q streams=%d", code, output, streams)
 				}
+				options, _ := cString("options", `{"sections":["scene"]}`, false)
+				if code := api.describe([]byte{9, 8, 7}, 1, 1, &options[0], &language[0], &keywords[0], output, 32); code != 5 || string(output[:6]) != "vision" || describes != 1 {
+					t.Fatalf("describe ABI: code=%d output=%q describes=%d", code, output, describes)
+				}
+				if models := api.models(); models != 7 {
+					t.Fatalf("models = %d", models)
+				}
 			}
 			if modern {
 				vector := make([]float32, 2)
@@ -149,7 +164,7 @@ func TestRegisterNativeABI(t *testing.T) {
 				}
 			} else {
 				if api.embed != nil || api.lastError != nil || api.transcribe != nil || api.setAudio != nil ||
-					api.completeAudio != nil || api.streamProcess != nil || api.streamStop != nil {
+					api.completeAudio != nil || api.streamProcess != nil || api.streamStop != nil || api.describe != nil || api.models != nil {
 					t.Fatal("Needle 2 engine bound Cactus engine functions")
 				}
 				// A pre-4.0 Needle 3 library shares the four names with a different completion.
