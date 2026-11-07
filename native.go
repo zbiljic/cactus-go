@@ -54,7 +54,6 @@ type processRuntime struct {
 	activeWeights string
 	activeBlob    []byte
 	speechWeights string
-	speechBlob    []byte
 	visionWeights string
 	// stream is the open live transcription, which the engine holds one of.
 	stream *Stream

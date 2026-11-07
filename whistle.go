@@ -133,7 +133,8 @@ func (w *Whistle) bindLocked() error {
 		w.runtime.speechWeights = ""
 		return api.failure("load speech weights", code, "")
 	}
-	w.runtime.speechBlob, w.runtime.speechWeights = blob, w.weightsPath
+	// The engine copies the archive, so blob is not retained.
+	w.runtime.speechWeights = w.weightsPath
 	return nil
 }
 

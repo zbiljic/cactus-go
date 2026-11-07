@@ -128,7 +128,7 @@ func TestWhistleTranscribeAndIndependentWeights(t *testing.T) {
 		}
 	}
 	r.mu.Unlock()
-	if fake.loads != 3 || r.speechWeights != w.weightsPath || !reflect.DeepEqual(r.speechBlob, testSpeechArchive()) || r.active != a {
+	if fake.loads != 3 || r.speechWeights != w.weightsPath || !reflect.DeepEqual(fake.loaded, testSpeechArchive()) || r.active != a {
 		t.Fatal("speech switching failed or changed the text model")
 	}
 }
@@ -143,7 +143,6 @@ func TestWhistleRejectsWrongKindWithoutNativeLoad(t *testing.T) {
 		t.Fatal(err)
 	}
 	r.mu.Unlock()
-	speechBlob := r.speechBlob
 	wrongSpeech := newTestWhistle(t, r)
 	if err := os.WriteFile(wrongSpeech.weightsPath, testHeadArchive([]uint16{0x4000}, true), 0o600); err != nil {
 		t.Fatal(err)
@@ -159,7 +158,7 @@ func TestWhistleRejectsWrongKindWithoutNativeLoad(t *testing.T) {
 	if _, err := wrongText.Complete(context.Background(), "hello", 1); err == nil || !strings.Contains(err.Error(), "not a recognized text model") {
 		t.Fatalf("speech-as-text error = %v", err)
 	}
-	if fake.loads != 1 || r.active != a || r.speechWeights != w.weightsPath || !reflect.DeepEqual(r.speechBlob, speechBlob) {
+	if fake.loads != 1 || r.active != a || r.speechWeights != w.weightsPath || !reflect.DeepEqual(fake.loaded, testSpeechArchive()) {
 		t.Fatal("wrong-kind rejection mutated loaded models")
 	}
 }
@@ -307,7 +306,11 @@ func TestNativeWhistle(t *testing.T) {
 			t.Fatalf("silence transcript = %+v, %v", transcript, err)
 		}
 	}
-	if weightsKind(w.runtime.speechBlob) != modelSpeech {
+	speechBlob, err := os.ReadFile(w.runtime.speechWeights)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if weightsKind(speechBlob) != modelSpeech {
 		t.Fatal("published speech archive kind not recognized")
 	}
 	type weatherArguments struct {
@@ -322,7 +325,7 @@ func TestNativeWhistle(t *testing.T) {
 	}
 	// Speech reload/transcription must preserve a pending text tool call.
 	path := filepath.Join(t.TempDir(), "speech.cact")
-	if err := os.WriteFile(path, w.runtime.speechBlob, 0o600); err != nil {
+	if err := os.WriteFile(path, speechBlob, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	var baseline Response
