@@ -3,6 +3,7 @@ package cactus
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"errors"
 	"image"
 	"image/color"
@@ -162,6 +163,20 @@ func TestNativeMirage(t *testing.T) {
 	again, err := vision.Describe(ctx, rgb, DescribeOptions{})
 	if err != nil || !bytes.Equal(again.Raw, description.Raw) {
 		t.Fatalf("RGB description differs: %s err=%v", again.Raw, err)
+	}
+	// A PNG stored sideways with EXIF orientation 6 decodes upright.
+	sideways := orient(rgb, 8)
+	stored := image.NewNRGBA(image.Rect(0, 0, sideways.Width, sideways.Height))
+	for i := range sideways.Width * sideways.Height {
+		copy(stored.Pix[i*4:], sideways.Pix[i*3:i*3+3])
+		stored.Pix[i*4+3] = 0xff
+	}
+	upright, err := DecodeImage(bytes.NewReader(withPNGExif(t, stored, testTIFF(binary.BigEndian, 3, 6))))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rotated, err := vision.Describe(ctx, upright, DescribeOptions{}); err != nil || !bytes.Equal(rotated.Raw, description.Raw) {
+		t.Fatalf("EXIF-rotated description differs: %s err=%v", rotated.Raw, err)
 	}
 
 	// A bitmap mask decodes onto the drawn square.

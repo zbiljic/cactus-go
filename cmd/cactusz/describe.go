@@ -24,7 +24,7 @@ type describer interface {
 func (a *application) runDescribe(ctx context.Context, args []string) error {
 	flags := a.flagSet(
 		"Describe a PNG, JPEG or GIF image with Mirage and print the engine JSON, or fill a form from it.\n"+
-			"EXIF orientation is not applied; rotate camera photos upright first.",
+			"JPEG and PNG photos are rotated upright by their EXIF orientation.",
 		"describe [options] image",
 	)
 	weightsPath := flags.String("weights", "", "path to Mirage .cact weights; empty fetches the pinned model")

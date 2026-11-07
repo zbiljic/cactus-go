@@ -165,8 +165,8 @@ if err != nil {
 description, err := vision.Describe(ctx, img, cactus.DescribeOptions{})
 ```
 
-`DecodeImage` reads PNG, JPEG and GIF with the standard library, which does not
-apply EXIF orientation: rotate camera photos upright before describing them.
+`DecodeImage` reads PNG, JPEG and GIF with the standard library and rotates
+JPEG and PNG photos upright by their EXIF orientation, as upstream does.
 See the [vision guide](docs/vision.md) for options, forms, coordinates and
 offline setup, or try the [image example](examples/describe-image).
 

@@ -374,12 +374,24 @@ func (p *RGBImage) At(x, y int) color.Color {
 }
 
 // DecodeImage decodes a PNG, JPEG, GIF (first frame) or any other format
-// registered with the image package. Like the standard library, it ignores
-// the EXIF orientation of camera JPEGs; see the vision guide.
+// registered with the image package. A JPEG or PNG with an EXIF orientation
+// other than 1 is rotated or flipped upright, as upstream does, and returned
+// as an *RGBImage without alpha. It reads r to EOF.
 func DecodeImage(r io.Reader) (image.Image, error) {
-	img, _, err := image.Decode(r)
+	data, err := io.ReadAll(r)
+	if err != nil {
+		return nil, fmt.Errorf("cactus: read image: %w", err)
+	}
+	img, _, err := image.Decode(bytes.NewReader(data))
 	if err != nil {
 		return nil, fmt.Errorf("cactus: decode image: %w", err)
+	}
+	if orientation := exifOrientation(data); orientation != 1 {
+		rgb, width, height, err := packRGB(img)
+		if err != nil {
+			return nil, err
+		}
+		return orient(&RGBImage{Pix: rgb, Width: width, Height: height}, orientation), nil
 	}
 	return img, nil
 }

@@ -23,8 +23,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	// The standard library ignores EXIF orientation: rotate camera photos
-	// upright before describing them.
+	// DecodeImage rotates camera photos upright by their EXIF orientation.
 	img, err := cactus.DecodeImage(file)
 	file.Close()
 	if err != nil {

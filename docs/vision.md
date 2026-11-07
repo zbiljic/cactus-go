@@ -115,16 +115,19 @@ plus any format another import registers with the `image` package.
 
 ### EXIF orientation
 
-The standard library ignores the EXIF `Orientation` tag. Many phone and camera
-JPEGs store pixels sideways and record the rotation only in that tag. Upstream's
-Python package applies it; cactus-go does not. Without it, Mirage sees the
-sideways pixels. Text may not be read, and boxes and positions describe the
-stored pixels rather than the upright photo.
+Many phone and camera photos store pixels sideways and record the rotation
+only in the EXIF `Orientation` tag, which the standard library ignores. Like
+upstream's Python package, `DecodeImage` reads that tag from a JPEG (APP1 Exif)
+or PNG (eXIf) and rotates or flips the pixels upright. Boxes and positions then
+describe the upright photo. A rotated image is returned as an `*RGBImage`
+without alpha; other images keep their decoded type. Unlike Pillow, it does not
+fall back to an orientation recorded only in XMP metadata or in ImageMagick's
+"Raw profile type exif" PNG text chunk.
 
-For camera images, read the tag with an EXIF library of your choice and rotate
-or flip the pixels upright before calling `Describe`. Alternatively, re-encode
-the photos upright beforehand. Boxes are always relative to the pixels you
-pass.
+An `image.Image` decoded elsewhere carries no orientation, and `Describe` uses
+its pixels as stored. Rotate such images upright yourself when their source
+records the orientation separately. Boxes are always relative to the pixels
+you pass.
 
 ## Runtime and custom weights
 
