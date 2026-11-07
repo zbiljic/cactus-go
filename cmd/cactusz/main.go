@@ -30,6 +30,7 @@ type session interface {
 
 type dependencies struct {
 	newAgent        func(context.Context, cactus.Config) (session, error)
+	newMirage       func(context.Context, cactus.MirageConfig) (describer, error)
 	fetchEngine     func(context.Context, cactus.FetchOptions) (string, error)
 	cachedEngine    func(cactus.FetchOptions) (string, error)
 	currentPlatform func() (cactus.Platform, error)
@@ -66,6 +67,13 @@ func main() {
 				}
 				return agent, nil
 			},
+			newMirage: func(ctx context.Context, config cactus.MirageConfig) (describer, error) {
+				vision, err := cactus.NewMirage(ctx, config)
+				if err != nil {
+					return nil, err
+				}
+				return vision, nil
+			},
 			fetchEngine:     cactus.FetchEngine,
 			cachedEngine:    cactus.CachedEngine,
 			currentPlatform: cactus.CurrentPlatform,
@@ -90,6 +98,8 @@ func (a *application) run(ctx context.Context, args []string) int {
 		err = a.runComplete(ctx, args[1:])
 	case "eval":
 		err = a.runEval(ctx, args[1:])
+	case "describe":
+		err = a.runDescribe(ctx, args[1:])
 	case "repl":
 		err = a.runREPL(ctx, args[1:])
 	case "test":
@@ -122,6 +132,7 @@ Commands:
   fetch       Download and verify an engine and its required base weights
   complete    Perform one raw model completion
   eval        Evaluate a tool set against JSONL prompt cases
+  describe    Describe an image or fill a form from it with Mirage
   repl        Exercise a persistent model session interactively
   test        Run behavioral conformance checks against the model
   doctor      Diagnose the local engine installation
