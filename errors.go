@@ -15,8 +15,8 @@ var (
 	// ErrUnsupportedGeneration indicates a generation other than 2 or 3, or a
 	// feature the selected generation lacks.
 	ErrUnsupportedGeneration = errors.New("cactus: unsupported generation")
-	// ErrUnsupportedABI indicates a native library with an incomplete
-	// capability set.
+	// ErrUnsupportedABI indicates a native library that does not export the
+	// complete ABI of the selected generation.
 	ErrUnsupportedABI = errors.New("cactus: unsupported native ABI")
 	// ErrEmbeddingUnsupported indicates that the model or engine has no
 	// embeddings.

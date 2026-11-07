@@ -118,7 +118,7 @@ func (s *Stream) bindLocked() (*nativeAPI, error) {
 		return nil, err
 	}
 	if r.api.streamProcess == nil {
-		return nil, fmt.Errorf("%w: engine does not support live transcription; use Cactus 4 or Needle 3.2 or newer", ErrSpeechUnsupported)
+		return nil, fmt.Errorf("%w: engine does not support live transcription", ErrSpeechUnsupported)
 	}
 	return r.api, nil
 }

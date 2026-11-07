@@ -12,16 +12,12 @@ import (
 )
 
 func TestRegisterNativeABI(t *testing.T) {
-	for _, variant := range []struct {
-		name, prefix string
-		modern       bool
-	}{
-		{"needle-legacy", "needle_", false},
-		{"needle-audio", "needle_", true},
-		{"cactus", "cactus_", true},
-	} {
-		prefix, modern := variant.prefix, variant.modern
-		t.Run(variant.name, func(t *testing.T) {
+	for _, generation := range []int{2, 3} {
+		prefix, modern := "needle_", generation == 3
+		if modern {
+			prefix = "cactus_"
+		}
+		t.Run(prefix+"abi", func(t *testing.T) {
 			calls := 0
 			var gotInput string
 			var gotTokens, gotCapacity, gotSamples int32
@@ -54,14 +50,13 @@ func TestRegisterNativeABI(t *testing.T) {
 				prefix + "complete": purego.NewCallback(complete),
 				prefix + "reset":    purego.NewCallback(func() {}),
 				prefix + "load":     purego.NewCallback(func(*byte, uint64) int32 { return 0 }),
-				prefix + "embed":    purego.NewCallback(embed),
 			}
 			if modern {
 				symbols[prefix+"complete"] = purego.NewCallback(func(input *byte, pcm *float32, samples, tokens int32, output *byte, capacity int32) int32 {
 					gotPCM, gotSamples = pcm, samples
 					return complete(input, tokens, output, capacity)
 				})
-				symbols[prefix+"models"] = 1 // Probed, never called during registration.
+				symbols[prefix+"models"] = 1 // Required, never called during registration.
 				symbols[prefix+"transcribe"] = purego.NewCallback(func(pcm *float32, samples int32, language, keywords *byte, timestamps int32, output *byte, capacity int32) int32 {
 					transcriptions++
 					if pcm == nil || samples != 2 || *pcm != 0.25 || readCString(language) != "en" || readCString(keywords) != "Paris\nAda" || timestamps != 1 || capacity != 32 {
@@ -110,7 +105,7 @@ func TestRegisterNativeABI(t *testing.T) {
 				}
 				return 0, errors.New("symbol absent")
 			}
-			api, err := registerNative(42, resolve)
+			api, err := registerNative(42, resolve, generation)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -147,9 +142,17 @@ func TestRegisterNativeABI(t *testing.T) {
 					t.Fatalf("stream stop ABI: code=%d output=%q streams=%d", code, output, streams)
 				}
 			}
-			vector := make([]float32, 2)
-			if api.embed(&input[0], nil, 0) != 2 || api.embed(&input[0], vector, 2) != 2 || embedCalls != 2 || vector[0] != 0.25 || vector[1] != -0.75 {
-				t.Fatalf("embedding ABI: calls=%d output=%v", embedCalls, vector)
+			if modern {
+				vector := make([]float32, 2)
+				if api.embed(&input[0], nil, 0) != 2 || api.embed(&input[0], vector, 2) != 2 || embedCalls != 2 || vector[0] != 0.25 || vector[1] != -0.75 {
+					t.Fatalf("embedding ABI: calls=%d output=%v", embedCalls, vector)
+				}
+			} else if api.embed != nil {
+				t.Fatal("Needle 2 engine bound embeddings")
+			}
+			// The other generation's ABI is rejected.
+			if _, err := registerNative(42, resolve, 5-generation); !errors.Is(err, ErrUnsupportedABI) {
+				t.Fatalf("generation %d accepted a %s library: %v", 5-generation, prefix, err)
 			}
 			names := make([]string, 0, len(symbols))
 			for name := range symbols {
@@ -157,45 +160,15 @@ func TestRegisterNativeABI(t *testing.T) {
 			}
 			for _, name := range names {
 				address := symbols[name]
-				if name == prefix+"embed" && !modern {
-					delete(symbols, name)
-					legacy, err := registerNative(42, resolve)
-					if err != nil || legacy.embed != nil {
-						t.Fatalf("legacy engine without embeddings: api=%+v err=%v", legacy, err)
-					}
-					symbols[name] = address
-					continue
-				}
 				symbols[name] = 0
-				if _, err := registerNative(42, resolve); err == nil || !strings.Contains(err.Error(), name) {
+				if _, err := registerNative(42, resolve, generation); !errors.Is(err, ErrUnsupportedABI) || !strings.Contains(err.Error(), name) {
 					t.Fatalf("null %s: %v", name, err)
 				}
 				delete(symbols, name)
-				if _, err := registerNative(42, resolve); err == nil || !strings.Contains(err.Error(), name) {
+				if _, err := registerNative(42, resolve, generation); !errors.Is(err, ErrUnsupportedABI) || !strings.Contains(err.Error(), name) {
 					t.Fatalf("missing %s: %v", name, err)
 				}
 				symbols[name] = address
-			}
-			if prefix == "needle_" && modern {
-				// Engine 3.1 has speech without the streaming pair.
-				process, stop := symbols[prefix+"stream_transcribe_process"], symbols[prefix+"stream_transcribe_stop"]
-				delete(symbols, prefix+"stream_transcribe_process")
-				delete(symbols, prefix+"stream_transcribe_stop")
-				older, err := registerNative(42, resolve)
-				if err != nil || older.streamProcess != nil || older.streamStop != nil || older.transcribe == nil {
-					t.Fatalf("engine without streaming: api=%+v err=%v", older, err)
-				}
-				symbols[prefix+"stream_transcribe_process"], symbols[prefix+"stream_transcribe_stop"] = process, stop
-			}
-			if prefix == "cactus_" {
-				// Cactus 4 always exports the streaming pair, so its absence is an error.
-				process, stop := symbols[prefix+"stream_transcribe_process"], symbols[prefix+"stream_transcribe_stop"]
-				delete(symbols, prefix+"stream_transcribe_process")
-				delete(symbols, prefix+"stream_transcribe_stop")
-				if _, err := registerNative(42, resolve); !errors.Is(err, ErrUnsupportedABI) {
-					t.Fatalf("cactus engine without streaming: %v", err)
-				}
-				symbols[prefix+"stream_transcribe_process"], symbols[prefix+"stream_transcribe_stop"] = process, stop
 			}
 		})
 	}
@@ -203,15 +176,17 @@ func TestRegisterNativeABI(t *testing.T) {
 
 func TestRegisterNativeRejectsPartialABI(t *testing.T) {
 	t.Parallel()
-	for _, present := range []string{"", "needle_models", "needle_complete", "cactus_models", "cactus_init"} {
-		resolve := func(_ uintptr, name string) (uintptr, error) {
-			if name == present {
-				return 1, nil
+	for _, generation := range []int{2, 3} {
+		for _, present := range []string{"", "needle_init", "needle_models", "cactus_init", "cactus_models"} {
+			resolve := func(_ uintptr, name string) (uintptr, error) {
+				if name == present {
+					return 1, nil
+				}
+				return 0, nil
 			}
-			return 0, nil
-		}
-		if _, err := registerNative(0, resolve); !errors.Is(err, ErrUnsupportedABI) {
-			t.Fatalf("registerNative(%s) error = %v", present, err)
+			if _, err := registerNative(0, resolve, generation); !errors.Is(err, ErrUnsupportedABI) {
+				t.Fatalf("generation %d with %q: %v", generation, present, err)
+			}
 		}
 	}
 }

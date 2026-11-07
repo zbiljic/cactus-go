@@ -18,7 +18,9 @@ import (
 )
 
 const (
-	// EngineVersion is the default (generation 3) Cactus engine version.
+	// EngineVersion is the Cactus engine version, which runs Needle 3 (the
+	// default generation) and Whistle. Needle 2 keeps its own engine; see
+	// EngineVersionFor.
 	EngineVersion = "4.0.0"
 
 	maxArtifactSize = 64 << 20
@@ -178,8 +180,8 @@ var (
 		artifacts:  artifacts,
 		weights:    baseWeights,
 	}
-	// whistleRelease pins the speech weights, which run on the generation 3
-	// engine and share its cache directory.
+	// whistleRelease pins the speech weights, which run on the Cactus engine
+	// and share its cache directory.
 	whistleRelease = engineRelease{
 		generation: 3,
 		version:    EngineVersion,
@@ -301,7 +303,7 @@ func FetchEngine(ctx context.Context, options FetchOptions) (string, error) {
 	return path, nil
 }
 
-// FetchWhistle caches the generation 3 engine and Whistle speech weights for offline
+// FetchWhistle caches the Cactus engine and Whistle speech weights for offline
 // use. It returns the library path and does not download text weights.
 // Generation must be zero or 3; Platform and CacheDir follow FetchEngine.
 func FetchWhistle(ctx context.Context, options FetchOptions) (string, error) {

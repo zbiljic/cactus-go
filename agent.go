@@ -59,7 +59,7 @@ func New(ctx context.Context, config Config) (*Agent, error) {
 
 	prepared.runtime.mu.Lock()
 	defer prepared.runtime.mu.Unlock()
-	if err := prepared.runtime.ensureLibraryLocked(libraryPath); err != nil {
+	if err := prepared.runtime.ensureLibraryLocked(libraryPath, prepared.generation); err != nil {
 		return nil, err
 	}
 	if err := prepared.runtime.bindLocked(prepared); err != nil {

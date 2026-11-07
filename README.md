@@ -120,9 +120,8 @@ vector, err := agent.Embed(ctx, "turn on the kitchen lights")
 ```
 
 `Embed` does not reset the conversation, including in stateless mode. Switching
-agents still follows the conversation rules below. Needle 2 and engines without
-an embedding symbol return an error; Cactus 4 and both legacy and audio-capable
-Needle 3 ABIs are supported.
+agents still follows the conversation rules below. Needle 2 agents return
+`ErrEmbeddingUnsupported`.
 
 The base model uses confidence-head probe features rather than a trained
 contrastive retrieval head. Evaluate similarity on your own data; this API does
@@ -156,8 +155,9 @@ agent, err := cactus.New(ctx, cactus.Config{
 })
 ```
 
-`Generation: 0` and `Generation: 3` select Needle 3 on the Cactus engine. A custom `WeightsPath`
-selects the compatible engine from the `.cact` header, taking precedence over
+`Generation: 0` and `Generation: 3` select Needle 3, which runs on the Cactus
+engine. A custom `WeightsPath` selects the compatible engine from the `.cact`
+header, taking precedence over
 `Generation`. Custom Needle 3 archives retain the engine's confidence scores
 when their metadata carries a recognized confidence head, including platform
 fine-tunes and the published base archive supplied through `WeightsPath`.
@@ -174,24 +174,21 @@ requires a separate process. Needle 3 can reload its base archive.
 Use `LibraryPath` for an existing, trusted engine matching the selected
 generation. When `LibraryPath` is empty, the environment overrides are
 `CACTUS_LIB_PATH` for generation 3, and `NEEDLE2_LIB_PATH`, then
-`NEEDLE_LIB_PATH`, for Needle 2 (`LibraryPathEnv` lists them). A generation 3
+`NEEDLE_LIB_PATH`, for Needle 2 (`LibraryPathEnv` lists them). A Needle 3
 library override still downloads missing base weights unless `WeightsPath` is
 supplied.
 
-Native loading selects the ABI from the exported symbols. Cactus 4 engines
-export the `cactus_*` functions and must provide the complete set. The Needle 2
-engine and trusted older Needle 3 libraries use `needle_*`; the audio-capable
-ABI is detected from its capability symbols, and libraries without them keep
-the legacy completion ABI. Incomplete capability sets are rejected before
-inference. Engines exposing a last-error function provide detailed native
-failure messages.
+Each generation binds one native ABI: `needle_*` from the Needle 2 engine and
+`cactus_*` from the Cactus engine. A library missing any function of that ABI
+is rejected with `ErrUnsupportedABI` before inference. Cactus engine failures
+include the engine's detailed native message.
 
 `FetchEngine` prepares the library and required base weights for offline use.
 `FetchOptions.Generation` selects the generation. Default caches are under
 `~/.cache/cactus-go/<engine-version>/<platform>/`;
-`CacheDir` selects an exact directory.
-V2 uses `libneedle.*`, while v3 uses `libcactus.*`, so the generations can share
-a custom cache directory for the same platform. For offline use, fetch for the
+`CacheDir` selects an exact directory. Needle 2 uses `libneedle.*` and the
+Cactus engine uses `libcactus.*`, so the generations can share a custom cache
+directory for the same platform. For offline use, fetch for the
 target platform and generation, preserve the `.sha256` marker files, and use
 the same cache directory at runtime. Markers contain the downloaded artifact hash
 and installed file hash; cached downloads verify both. `CachedEngine` checks only

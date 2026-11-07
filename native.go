@@ -92,7 +92,7 @@ func weightsGeneration(blob []byte) (int, error) {
 	}
 }
 
-func (r *processRuntime) ensureLibraryLocked(path string) error {
+func (r *processRuntime) ensureLibraryLocked(path string, generation int) error {
 	absolute, err := filepath.Abs(path)
 	if err != nil {
 		return fmt.Errorf("cactus: resolve library path: %w", err)
@@ -103,7 +103,7 @@ func (r *processRuntime) ensureLibraryLocked(path string) error {
 		}
 		return nil
 	}
-	api, err := loadNative(absolute)
+	api, err := loadNative(absolute, generation)
 	if err != nil {
 		return err
 	}

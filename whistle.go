@@ -46,8 +46,7 @@ type Transcript struct {
 	DecodeTPS float64         `json:"decode_tps"`
 }
 
-// WhistleConfig selects speech weights and a generation 3 engine with speech
-// support: Cactus 4, or a trusted Needle 3.1 or newer library.
+// WhistleConfig selects speech weights and the Cactus engine that runs them.
 // LibraryPath and CacheDir follow Config. Empty WeightsPath fetches Whistle.
 type WhistleConfig struct {
 	WeightsPath string
@@ -99,7 +98,7 @@ func NewWhistle(ctx context.Context, config WhistleConfig) (*Whistle, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	if err := w.runtime.ensureLibraryLocked(libraryPath); err != nil {
+	if err := w.runtime.ensureLibraryLocked(libraryPath, 3); err != nil {
 		return nil, err
 	}
 	if err := w.bindLocked(); err != nil {
@@ -114,7 +113,7 @@ func (w *Whistle) bindLocked() error {
 	}
 	api := w.runtime.api
 	if api == nil || api.transcribe == nil || api.setAudio == nil || api.completeAudio == nil {
-		return fmt.Errorf("%w: engine does not support speech; use Cactus 4 or Needle 3.1 or newer", ErrSpeechUnsupported)
+		return fmt.Errorf("%w: engine does not support speech", ErrSpeechUnsupported)
 	}
 	if w.runtime.speechWeights == w.weightsPath {
 		return nil

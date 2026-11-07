@@ -159,12 +159,12 @@ func TestStreamUnsupportedAndInvalidInput(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Engine 3.1 has speech without streaming.
+	// A runtime without the streaming functions reports it instead of panicking.
 	if _, err := s.Process(ctx, nil); !errors.Is(err, ErrSpeechUnsupported) {
-		t.Fatalf("Process() on 3.1 engine error = %v", err)
+		t.Fatalf("Process() without streaming error = %v", err)
 	}
 	if _, err := s.Stop(ctx); !errors.Is(err, ErrSpeechUnsupported) {
-		t.Fatalf("Stop() on 3.1 engine error = %v", err)
+		t.Fatalf("Stop() without streaming error = %v", err)
 	}
 	var events []string
 	fakeStream(t, r, &events)
