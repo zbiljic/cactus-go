@@ -36,6 +36,8 @@ func registerNative(handle uintptr, symbol func(uintptr, string) (uintptr, error
 				return nil, fmt.Errorf("%w: missing cactus_%s", ErrUnsupportedABI, name)
 			}
 		}
+	} else if resolve("init") == 0 {
+		return nil, fmt.Errorf("%w: missing cactus_init or needle_init", ErrUnsupportedABI)
 	}
 
 	api := &nativeAPI{handle: handle}

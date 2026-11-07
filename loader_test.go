@@ -203,7 +203,7 @@ func TestRegisterNativeABI(t *testing.T) {
 
 func TestRegisterNativeRejectsPartialABI(t *testing.T) {
 	t.Parallel()
-	for _, present := range []string{"needle_models", "cactus_models", "cactus_init"} {
+	for _, present := range []string{"", "needle_models", "needle_complete", "cactus_models", "cactus_init"} {
 		resolve := func(_ uintptr, name string) (uintptr, error) {
 			if name == present {
 				return 1, nil

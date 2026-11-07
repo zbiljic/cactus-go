@@ -467,6 +467,9 @@ func downloadAttempt(ctx context.Context, client *http.Client, url, destination 
 		_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 4<<10))
 		return fmt.Errorf("download returned %s", response.Status)
 	}
+	if response.ContentLength >= 0 && response.ContentLength != size {
+		return fmt.Errorf("size mismatch: server reports %d bytes, want %d", response.ContentLength, size)
+	}
 
 	file, err := os.OpenFile(destination, os.O_WRONLY|os.O_TRUNC, 0o600)
 	if err != nil {

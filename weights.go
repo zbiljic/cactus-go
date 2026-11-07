@@ -110,7 +110,7 @@ func headCodes(data []byte, n uint64) ([]uint16, bool) {
 	return codes, true
 }
 
-// weightsKind distinguishes text and speech before needle_load can replace
+// weightsKind distinguishes text and speech before the engine's load call can replace
 // either process-global model. The shared format tag does not identify the kind.
 func weightsKind(blob []byte) int {
 	directory, count, index, ok := manifestPosition(blob)

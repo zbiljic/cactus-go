@@ -53,7 +53,8 @@ func TestSupportedPlatforms(t *testing.T) {
 			t.Fatalf("checksum for %s = %q, want %d-byte hex: %v", platform, artifact.checksum, sha256.Size, err)
 		}
 		prefix := "releases/" + EngineVersion + "/python/cactus_runtime-" + EngineVersion + "-py3-none-"
-		if artifact.repo != "Cactus-Compute/cactus" || !strings.HasPrefix(artifact.path, prefix) || artifact.size <= 0 {
+		if artifact.repo != "Cactus-Compute/cactus" || !strings.HasPrefix(artifact.path, prefix) ||
+			artifact.size <= 0 || artifact.size > maxArtifactSize {
 			t.Errorf("artifact for %s = %s@%s/%s (%d bytes)", platform, artifact.repo, artifact.revision, artifact.path, artifact.size)
 		}
 		libraryName := libraries[strings.SplitN(string(platform), "-", 2)[0]]
@@ -307,14 +308,15 @@ func TestArtifactURLPinsRevision(t *testing.T) {
 				artifact.revision,
 				artifact.path,
 			)
-			if got := artifactURL(artifact); got != want || len(artifact.revision) != 40 || !strings.Contains(got, "/python/") {
+			if got := artifactURL(artifact); got != want || len(artifact.revision) != 40 || !strings.Contains(got, "/python/") ||
+				artifact.size <= 0 || artifact.size > maxArtifactSize {
 				t.Errorf("artifactURL(%s) = %q, want %q", platform, got, want)
 			}
 		}
 	}
 	for _, weights := range []engineArtifact{baseWeights, speechWeights} {
 		got := artifactURL(weights)
-		if len(weights.revision) != 40 || weights.size <= 0 || strings.Contains(got, "/python/") ||
+		if len(weights.revision) != 40 || weights.size <= 0 || weights.size > maxArtifactSize || strings.Contains(got, "/python/") ||
 			got != "https://huggingface.co/"+weights.repo+"/resolve/"+weights.revision+"/"+weights.path+"?download=true" {
 			t.Errorf("weights URL = %q", got)
 		}
@@ -348,6 +350,22 @@ func TestPinnedEngineArtifacts(t *testing.T) {
 				}
 				if !info.Mode().IsRegular() || info.Size() == 0 {
 					t.Fatalf("FetchEngine() file mode = %v, size = %d", info.Mode(), info.Size())
+				}
+				if generation == 3 {
+					// Speech weights are fetched once per cache; later platforms reuse them.
+					if _, err := FetchWhistle(context.Background(), FetchOptions{
+						Generation: generation,
+						Platform:   platform,
+						CacheDir:   cacheDir,
+					}); err != nil {
+						t.Fatal(err)
+					}
+					for _, weights := range []engineArtifact{baseWeights, speechWeights} {
+						info, err := os.Stat(filepath.Join(cacheDir, weights.libraryName))
+						if err != nil || info.Size() != weights.size {
+							t.Fatalf("%s: info=%v err=%v", weights.libraryName, info, err)
+						}
+					}
 				}
 			})
 		}
