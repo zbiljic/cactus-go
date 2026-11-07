@@ -147,8 +147,17 @@ func TestRegisterNativeABI(t *testing.T) {
 				if api.embed(&input[0], nil, 0) != 2 || api.embed(&input[0], vector, 2) != 2 || embedCalls != 2 || vector[0] != 0.25 || vector[1] != -0.75 {
 					t.Fatalf("embedding ABI: calls=%d output=%v", embedCalls, vector)
 				}
-			} else if api.embed != nil {
-				t.Fatal("Needle 2 engine bound embeddings")
+			} else {
+				if api.embed != nil || api.lastError != nil || api.transcribe != nil || api.setAudio != nil ||
+					api.completeAudio != nil || api.streamProcess != nil || api.streamStop != nil {
+					t.Fatal("Needle 2 engine bound Cactus engine functions")
+				}
+				// A pre-4.0 Needle 3 library shares the four names with a different completion.
+				symbols["needle_models"] = 1
+				if _, err := registerNative(42, resolve, generation); !errors.Is(err, ErrUnsupportedABI) {
+					t.Fatalf("Needle 3 library accepted as Needle 2: %v", err)
+				}
+				delete(symbols, "needle_models")
 			}
 			// The other generation's ABI is rejected.
 			if _, err := registerNative(42, resolve, 5-generation); !errors.Is(err, ErrUnsupportedABI) {

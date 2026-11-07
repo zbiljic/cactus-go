@@ -9,7 +9,7 @@ import (
 const maxEmbeddingFloats = 1 << 20
 
 // Embed returns text features from Needle 3 without resetting the conversation.
-// Engines without embedding support return an error.
+// Needle 2 agents return ErrEmbeddingUnsupported.
 func (a *Agent) Embed(ctx context.Context, text string) ([]float32, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -31,9 +31,6 @@ func (a *Agent) Embed(ctx context.Context, text string) ([]float32, error) {
 		return nil, err
 	}
 	api := a.runtime.api
-	if api.embed == nil {
-		return nil, fmt.Errorf("%w: engine does not support embeddings", ErrEmbeddingUnsupported)
-	}
 	size := api.embed(bytePointer(input), nil, 0)
 	if size < 0 {
 		return nil, api.failure("embed size", size, "")

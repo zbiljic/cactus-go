@@ -256,10 +256,6 @@ func TestWhistleInvalidInputAndErrors(t *testing.T) {
 	if _, err := w.Transcribe(context.Background(), nil, AudioOptions{}); err == nil || !strings.Contains(err.Error(), "transcription detail") {
 		t.Fatalf("native error = %v", err)
 	}
-	r.api.transcribe = nil
-	if _, err := w.Transcribe(context.Background(), nil, AudioOptions{}); err == nil || !strings.Contains(err.Error(), "does not support speech") {
-		t.Fatalf("missing speech ABI error = %v", err)
-	}
 	for _, size := range []int{1, int(math.MaxInt32) + 1} {
 		if _, err := NewWhistle(context.Background(), WhistleConfig{BufferSize: size}); err == nil {
 			t.Fatal("invalid buffer size accepted")

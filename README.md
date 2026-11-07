@@ -197,7 +197,7 @@ for the library and trusts the caller's file.
 ## Errors
 
 Errors wrap sentinels for `errors.Is`: `ErrValidation` (also wrapped by `Run`),
-`ErrUnsupportedGeneration`, `ErrEmbeddingUnsupported`, `ErrSpeechUnsupported`,
+`ErrUnsupportedGeneration`, `ErrEmbeddingUnsupported`,
 `ErrUnsupportedABI`, `ErrUnsupportedPlatform`, `ErrEngineNotFound`,
 `ErrStreamActive` and `ErrClosed`. A failed engine call is a `*NativeError` with the operation, the
 native code and any engine diagnostic, for `errors.As`.

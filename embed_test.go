@@ -81,7 +81,6 @@ func TestEmbedUnavailableAndInvalidInput(t *testing.T) {
 		generation        int
 	}{
 		{"Needle 2", "hello", "embeddings require Needle 3", 2},
-		{"missing symbol", "hello", "engine does not support embeddings", 3},
 		{"NUL", "hello\x00world", "input contains NUL", 3},
 	} {
 		t.Run(test.name, func(t *testing.T) {

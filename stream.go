@@ -117,9 +117,6 @@ func (s *Stream) bindLocked() (*nativeAPI, error) {
 	if err := s.whistle.bindLocked(); err != nil {
 		return nil, err
 	}
-	if r.api.streamProcess == nil {
-		return nil, fmt.Errorf("%w: engine does not support live transcription", ErrSpeechUnsupported)
-	}
 	return r.api, nil
 }
 

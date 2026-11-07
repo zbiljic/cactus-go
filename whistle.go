@@ -112,8 +112,8 @@ func (w *Whistle) bindLocked() error {
 		return ErrClosed
 	}
 	api := w.runtime.api
-	if api == nil || api.transcribe == nil || api.setAudio == nil || api.completeAudio == nil {
-		return fmt.Errorf("%w: engine does not support speech", ErrSpeechUnsupported)
+	if api == nil {
+		return errors.New("cactus: engine is not loaded")
 	}
 	if w.runtime.speechWeights == w.weightsPath {
 		return nil

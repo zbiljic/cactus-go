@@ -144,7 +144,7 @@ func TestStreamFailureEndsStream(t *testing.T) {
 	}
 }
 
-func TestStreamUnsupportedAndInvalidInput(t *testing.T) {
+func TestStreamInvalidInput(t *testing.T) {
 	t.Parallel()
 	fake := &fakeNative{}
 	_, r := newTestAgent(t, fake, Config{})
@@ -158,13 +158,6 @@ func TestStreamUnsupportedAndInvalidInput(t *testing.T) {
 	s, err := w.Stream(AudioOptions{})
 	if err != nil {
 		t.Fatal(err)
-	}
-	// A runtime without the streaming functions reports it instead of panicking.
-	if _, err := s.Process(ctx, nil); !errors.Is(err, ErrSpeechUnsupported) {
-		t.Fatalf("Process() without streaming error = %v", err)
-	}
-	if _, err := s.Stop(ctx); !errors.Is(err, ErrSpeechUnsupported) {
-		t.Fatalf("Stop() without streaming error = %v", err)
 	}
 	var events []string
 	fakeStream(t, r, &events)

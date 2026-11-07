@@ -18,11 +18,8 @@ var (
 	// ErrUnsupportedABI indicates a native library that does not export the
 	// complete ABI of the selected generation.
 	ErrUnsupportedABI = errors.New("cactus: unsupported native ABI")
-	// ErrEmbeddingUnsupported indicates that the model or engine has no
-	// embeddings.
+	// ErrEmbeddingUnsupported indicates that the generation has no embeddings.
 	ErrEmbeddingUnsupported = errors.New("cactus: embeddings unavailable")
-	// ErrSpeechUnsupported indicates that the engine has no speech ABI.
-	ErrSpeechUnsupported = errors.New("cactus: speech unavailable")
 	// ErrValidation is wrapped by ValidateResponse, and by Run, when the engine
 	// flags a response.
 	ErrValidation = errors.New("cactus: response validation")

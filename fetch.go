@@ -27,7 +27,8 @@ const (
 )
 
 // LibraryPathEnv returns the environment variables that override engine
-// discovery for a generation (zero means 3), in lookup order.
+// discovery for a generation (zero means 3), in lookup order. The first
+// non-empty variable selects the library.
 func LibraryPathEnv(generation int) ([]string, error) {
 	release, err := releaseFor(generation)
 	if err != nil {

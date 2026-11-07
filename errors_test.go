@@ -23,7 +23,7 @@ func TestSentinelErrors(t *testing.T) {
 	fake := &fakeNative{responses: [][]byte{
 		[]byte(`{"type":"call","function_calls":[{"name":"x","arguments":{}}],"validation":{"ungrounded":["x.a"]}}`),
 	}}
-	a, r := newTestAgent(t, fake, Config{Generation: 2})
+	a, _ := newTestAgent(t, fake, Config{Generation: 2})
 	if _, err := a.Run(ctx, "hello", 0, 0); !errors.Is(err, ErrValidation) {
 		t.Fatalf("Run() error = %v", err)
 	}
@@ -38,10 +38,5 @@ func TestSentinelErrors(t *testing.T) {
 	}
 	if err.Error() != "cactus: complete failed with code -3: native failure" {
 		t.Fatalf("Complete() error text = %q", err.Error())
-	}
-
-	w := &Whistle{runtime: r, buffer: make([]byte, DefaultSpeechBufferSize)}
-	if _, err := w.Transcribe(ctx, nil, AudioOptions{}); !errors.Is(err, ErrSpeechUnsupported) {
-		t.Fatalf("Transcribe() error = %v", err)
 	}
 }

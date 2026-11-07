@@ -31,13 +31,24 @@ func registerNative(
 	if generation == 2 {
 		prefix, names = "needle_", needle2Symbols
 	}
+	engine := "Cactus engine"
+	if generation == 2 {
+		engine = "Needle 2 engine"
+	}
 	address := make(map[string]uintptr, len(names))
 	for _, name := range names {
 		resolved, err := symbol(handle, prefix+name)
 		if err != nil || resolved == 0 {
-			return nil, fmt.Errorf("%w: generation %d engine is missing %s%s", ErrUnsupportedABI, generation, prefix, name)
+			return nil, fmt.Errorf("%w: %s is missing %s%s", ErrUnsupportedABI, engine, prefix, name)
 		}
 		address[name] = resolved
+	}
+	if generation == 2 {
+		// Needle 3 libraries before Cactus 4 also export these four names, but
+		// with a six-argument needle_complete. needle_models identifies them.
+		if models, _ := symbol(handle, "needle_models"); models != 0 {
+			return nil, fmt.Errorf("%w: Needle 3 library is not the Needle 2 engine", ErrUnsupportedABI)
+		}
 	}
 
 	api := &nativeAPI{handle: handle}
