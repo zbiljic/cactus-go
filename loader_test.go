@@ -25,7 +25,7 @@ func TestRegisterNativeABI(t *testing.T) {
 			var gotPCM *float32
 			transcriptions, audioSettings, streams := 0, 0, 0
 			var threads []int32
-			embedCalls, describes := 0, 0
+			embedCalls, describes, audioEmbeds := 0, 0, 0
 			embed := func(input *byte, output *float32, capacity int32) int32 {
 				embedCalls++
 				if readCString(input) != "hello" {
@@ -86,7 +86,14 @@ func TestRegisterNativeABI(t *testing.T) {
 				})
 				symbols[prefix+"set_threads"] = purego.NewCallback(func(count int32) { threads = append(threads, count) })
 				symbols[prefix+"embed"] = purego.NewCallback(func(input *byte, pcm *float32, samples int32, output *float32, capacity int32) int32 {
-					if pcm != nil || samples != 0 {
+					if pcm != nil {
+						audioEmbeds++
+						if input != nil || samples != 2 || *pcm != 0.25 {
+							t.Error("incorrect audio embedding arguments")
+						}
+						return 512
+					}
+					if samples != 0 {
 						t.Error("text embedding received audio arguments")
 					}
 					return embed(input, output, capacity)
@@ -170,8 +177,12 @@ func TestRegisterNativeABI(t *testing.T) {
 				if api.embed(&input[0], nil, 0) != 2 || api.embed(&input[0], vector, 2) != 2 || embedCalls != 2 || vector[0] != 0.25 || vector[1] != -0.75 {
 					t.Fatalf("embedding ABI: calls=%d output=%v", embedCalls, vector)
 				}
+				pcm := []float32{0.25, -0.5}
+				if api.embedAudio(&pcm[0], 2, nil, 0) != 512 || audioEmbeds != 1 || embedCalls != 2 {
+					t.Fatalf("audio embedding ABI: audio=%d text=%d", audioEmbeds, embedCalls)
+				}
 			} else {
-				if api.embed != nil || api.lastError != nil || api.transcribe != nil || api.setAudio != nil ||
+				if api.embed != nil || api.embedAudio != nil || api.lastError != nil || api.transcribe != nil || api.setAudio != nil ||
 					api.completeAudio != nil || api.streamProcess != nil || api.streamStop != nil || api.describe != nil || api.models != nil || api.setThreads != nil {
 					t.Fatal("Needle 2 engine bound Cactus engine functions")
 				}

@@ -74,6 +74,22 @@ with `ValidateResponse` before acting on calls, and never execute suppressed
 calls automatically. Stateless agents reset once before the audio request;
 stateful agents retain context for manual tool-result continuations.
 
+## Speech features
+
+`Embed` returns the Whistle encoder output for up to 30 seconds of PCM, for
+speaker or sound similarity, clustering or a downstream classifier:
+
+```go
+features, err := speech.Embed(ctx, pcm)
+```
+
+The result is flattened rows of 512 floats for the published model, so
+`len(features)/512` is the row count. There is about one row per 80 ms of audio
+(1280 samples); a trailing partial frame adds a row only once it holds a full
+10 ms hop (160 samples), and any nonempty clip returns at least one row. Longer
+clips fail with a `NativeError`; split them first. Empty audio is
+rejected, and an open stream returns `ErrStreamActive`.
+
 ## Runtime and custom weights
 
 Whistle shares one serialized Cactus engine runtime and library path with the

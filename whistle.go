@@ -189,6 +189,53 @@ func (w *Whistle) Transcribe(ctx context.Context, pcm []float32, options AudioOp
 	return transcript, nil
 }
 
+// Embed returns the speech encoder output for up to 30 seconds of PCM as
+// flattened rows, about one per 80 ms of audio; the published model's rows are
+// 512 floats wide. Calls are serialized with all other native work and fail
+// with ErrStreamActive while a live stream is open.
+func (w *Whistle) Embed(ctx context.Context, pcm []float32) ([]float32, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if len(pcm) == 0 {
+		return nil, errors.New("cactus: audio embedding requires samples")
+	}
+	if err := checkPCM(pcm); err != nil {
+		return nil, err
+	}
+	w.runtime.mu.Lock()
+	defer w.runtime.mu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if w.runtime.stream != nil {
+		return nil, ErrStreamActive
+	}
+	if err := w.bindLocked(); err != nil {
+		return nil, err
+	}
+	api := w.runtime.api
+	size := api.embedAudio(&pcm[0], int32(len(pcm)), nil, 0)
+	if size < 0 {
+		return nil, api.failure("embed audio size", size, "")
+	}
+	if size == 0 || size > maxEmbeddingFloats {
+		return nil, fmt.Errorf("cactus: invalid audio embedding size %d", size)
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	output := make([]float32, int(size))
+	code := api.embedAudio(&pcm[0], int32(len(pcm)), output, size)
+	if code < 0 {
+		return nil, api.failure("embed audio", code, "")
+	}
+	if code != size {
+		return nil, fmt.Errorf("cactus: audio embedding length %d, want %d", code, size)
+	}
+	return output, nil
+}
+
 // Complete transcribes PCM and completes a raw Needle 3 turn inside the engine.
 // It returns tool calls without executing handlers or applying ValidateResponse.
 // textAgent must be a Needle 3 Agent created by New that shares this engine.

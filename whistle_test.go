@@ -306,6 +306,18 @@ func TestNativeWhistle(t *testing.T) {
 			t.Fatalf("silence transcript = %+v, %v", transcript, err)
 		}
 	}
+	// 512-float encoder rows, about one per 80 ms; a partial frame counts
+	// once it holds a full 10 ms hop.
+	for samples, rows := range map[int]int{1: 1, 1280: 1, 1439: 1, 1440: 2, SpeechSampleRate: 13, 30 * SpeechSampleRate: 375} {
+		features, err := w.Embed(ctx, make([]float32, samples))
+		if err != nil || len(features) != rows*512 {
+			t.Fatalf("%d samples: Embed() length=%d err=%v, want %d rows", samples, len(features), err, rows)
+		}
+	}
+	var native *NativeError
+	if _, err := w.Embed(ctx, make([]float32, 31*SpeechSampleRate)); !errors.As(err, &native) {
+		t.Fatalf("31 s Embed() error = %v, want native limit", err)
+	}
 	speechBlob, err := os.ReadFile(w.runtime.speechWeights)
 	if err != nil {
 		t.Fatal(err)
@@ -452,5 +464,80 @@ func TestWhistleTranscribeGrowsBufferForLongClips(t *testing.T) {
 	want := []int32{DefaultSpeechBufferSize, 100 * speechOutputBytesPerSecond, 100 * speechOutputBytesPerSecond}
 	if !reflect.DeepEqual(capacities, want) {
 		t.Fatalf("capacities = %v, want %v", capacities, want)
+	}
+}
+
+func TestWhistleEmbed(t *testing.T) {
+	t.Parallel()
+	fake := &fakeNative{}
+	a, r := newTestAgent(t, fake, Config{})
+	w := newTestWhistle(t, r)
+	var calls int
+	r.api.embedAudio = func(pcm *float32, samples int32, output []float32, capacity int32) int32 {
+		if r.mu.TryLock() {
+			r.mu.Unlock()
+			t.Fatal("audio embedding outside shared mutex")
+		}
+		calls++
+		if samples != 2 || !reflect.DeepEqual(unsafe.Slice(pcm, samples), []float32{0.5, -0.25}) {
+			t.Fatal("incorrect audio embedding arguments")
+		}
+		if output == nil {
+			if capacity != 0 {
+				t.Fatal("size query has nonzero capacity")
+			}
+			return 3
+		}
+		copy(output, []float32{1, 2, 3})
+		return 3
+	}
+	ctx := context.Background()
+	features, err := w.Embed(ctx, []float32{0.5, -0.25})
+	if err != nil || !reflect.DeepEqual(features, []float32{1, 2, 3}) || calls != 2 {
+		t.Fatalf("Embed() = %v, %v; calls=%d", features, err, calls)
+	}
+	if r.active != a || fake.loads != 1 {
+		t.Fatal("audio embedding altered the text conversation")
+	}
+
+	for _, pcm := range [][]float32{nil, {2}} {
+		if _, err := w.Embed(ctx, pcm); err == nil {
+			t.Fatalf("Embed(%v) accepted invalid audio", pcm)
+		}
+	}
+	r.api.embedAudio = func(*float32, int32, []float32, int32) int32 { return -1 }
+	r.api.lastError = func() string { return "embedding audio limit is 30 s" }
+	var native *NativeError
+	if _, err := w.Embed(ctx, []float32{0.5, -0.25}); !errors.As(err, &native) || native.Detail != "embedding audio limit is 30 s" {
+		t.Fatalf("native failure = %v", err)
+	}
+	r.api.embedAudio = func(_ *float32, _ int32, output []float32, _ int32) int32 {
+		if output == nil {
+			return 3
+		}
+		return 2
+	}
+	if _, err := w.Embed(ctx, []float32{0.5}); err == nil || !strings.Contains(err.Error(), "length 2, want 3") {
+		t.Fatalf("short write error = %v", err)
+	}
+	canceled, cancel := context.WithCancel(ctx)
+	cancel()
+	if _, err := w.Embed(canceled, []float32{0.5}); !errors.Is(err, context.Canceled) {
+		t.Fatalf("canceled Embed() error = %v", err)
+	}
+	r.mu.Lock()
+	r.stream = &Stream{}
+	r.mu.Unlock()
+	if _, err := w.Embed(ctx, []float32{0.5}); !errors.Is(err, ErrStreamActive) {
+		t.Fatalf("Embed() during stream error = %v", err)
+	}
+	r.mu.Lock()
+	r.stream = nil
+	r.mu.Unlock()
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := w.Embed(ctx, []float32{0.5}); !errors.Is(err, ErrClosed) {
+		t.Fatalf("closed Embed() error = %v", err)
 	}
 }

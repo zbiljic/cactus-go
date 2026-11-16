@@ -77,5 +77,8 @@ func registerNative(
 	api.embed = func(input *byte, output []float32, capacity int32) int32 {
 		return embed(input, nil, 0, output, capacity)
 	}
+	api.embedAudio = func(pcm *float32, samples int32, output []float32, capacity int32) int32 {
+		return embed(nil, pcm, samples, output, capacity)
+	}
 	return api, nil
 }

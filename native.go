@@ -28,6 +28,7 @@ type nativeAPI struct {
 	setAudio      func(*byte, *byte, int32)
 	setThreads    func(int32)
 	embed         func(*byte, []float32, int32) int32
+	embedAudio    func(*float32, int32, []float32, int32) int32
 	describe      func([]byte, int32, int32, *byte, *byte, *byte, []byte, int32) int32
 	models        func() int32
 	lastError     func() string
