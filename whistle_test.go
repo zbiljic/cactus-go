@@ -1,6 +1,7 @@
 package cactus
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/binary"
@@ -325,6 +326,12 @@ func TestNativeWhistle(t *testing.T) {
 	if weightsKind(speechBlob) != modelSpeech {
 		t.Fatal("published speech archive kind not recognized")
 	}
+	if got := w.Languages(); !reflect.DeepEqual(got, defaultSpeechLanguages) {
+		t.Fatalf("published Languages() = %q", got)
+	}
+	if got := speechLanguages(bytes.NewReader(speechBlob), int64(len(speechBlob))); !reflect.DeepEqual(got, defaultSpeechLanguages) {
+		t.Fatalf("published tokenizer languages = %q", got)
+	}
 	type weatherArguments struct {
 		City string `json:"city"`
 	}
@@ -539,5 +546,113 @@ func TestWhistleEmbed(t *testing.T) {
 	}
 	if _, err := w.Embed(ctx, []float32{0.5}); !errors.Is(err, ErrClosed) {
 		t.Fatalf("closed Embed() error = %v", err)
+	}
+}
+
+func testTokenizer(pieces ...string) []byte {
+	data := make([]byte, 24)
+	binary.LittleEndian.PutUint32(data, uint32(len(pieces)))
+	for _, piece := range pieces {
+		entry := make([]byte, 7)
+		binary.LittleEndian.PutUint16(entry[5:], uint16(len(piece)))
+		data = append(append(data, entry...), piece...)
+	}
+	return data
+}
+
+// testSpeechArchiveWithTokenizer stores a tokenizer as the raw tensor after
+// the audio manifest.
+func testSpeechArchiveWithTokenizer(pieces ...string) []byte {
+	blob := testSpeechArchive()
+	const directory, index = 196 + 28*4, 13 + 2*27
+	tokenizer := testTokenizer(pieces...)
+	record := blob[directory+(index+1)*44:]
+	record[0], record[1] = 4, 0
+	binary.LittleEndian.PutUint64(record[20:], uint64(len(blob)))
+	binary.LittleEndian.PutUint64(record[28:], uint64(len(tokenizer)))
+	return append(blob, tokenizer...)
+}
+
+func TestSpeechLanguages(t *testing.T) {
+	t.Parallel()
+	for name, test := range map[string]struct {
+		pieces []string
+		want   []string
+	}{
+		"published":       {[]string{"<|im_start|>", "<|im_end|>", "a", "b", "<|en|>", "<|de|>"}, []string{"en", "de"}},
+		"specials reset":  {[]string{"<|pt|>", "word", "<|en|>"}, []string{"en"}},
+		"trailing word":   {[]string{"<|en|>", "word"}, nil},
+		"empty code":      {[]string{"<|en|>", "<||>"}, nil},
+		"no vocabulary":   {nil, nil},
+		"custom language": {[]string{"x", "<|pt-BR|>", "<|en|>"}, []string{"pt-BR", "en"}},
+	} {
+		blob := testSpeechArchiveWithTokenizer(test.pieces...)
+		if weightsKind(blob) != modelSpeech {
+			t.Fatalf("%s: archive is not a speech archive", name)
+		}
+		if got := speechLanguages(bytes.NewReader(blob), int64(len(blob))); !reflect.DeepEqual(got, test.want) {
+			t.Fatalf("%s: speechLanguages() = %q, want %q", name, got, test.want)
+		}
+	}
+	blob := testSpeechArchiveWithTokenizer("<|en|>")
+	for size := range len(blob) {
+		if got := speechLanguages(bytes.NewReader(blob[:size]), int64(size)); got != nil {
+			t.Fatalf("truncated archive of %d bytes = %q", size, got)
+		}
+	}
+	tokenizer := testTokenizer("<|en|>")
+	binary.LittleEndian.PutUint32(tokenizer, math.MaxUint32)
+	if got := tokenizerLanguages(tokenizer); got != nil {
+		t.Fatalf("huge piece count = %q", got)
+	}
+	if got := speechLanguages(bytes.NewReader(testSpeechArchive()), int64(len(testSpeechArchive()))); got != nil {
+		t.Fatalf("archive without tokenizer = %q", got)
+	}
+}
+
+func FuzzSpeechLanguages(f *testing.F) {
+	f.Add(testSpeechArchiveWithTokenizer("a", "<|en|>", "<|de|>"))
+	f.Add(testSpeechArchive())
+	f.Fuzz(func(t *testing.T, blob []byte) {
+		for _, code := range speechLanguages(bytes.NewReader(blob), int64(len(blob))) {
+			if code == "" {
+				t.Fatal("empty language code")
+			}
+		}
+	})
+}
+
+func TestWhistleLanguagesFromWeights(t *testing.T) {
+	t.Parallel()
+	fake := &fakeNative{}
+	_, r := newTestAgent(t, fake, Config{})
+	w := newTestWhistle(t, r)
+	if got := w.Languages(); !reflect.DeepEqual(got, defaultSpeechLanguages) {
+		t.Fatalf("default Languages() = %q", got)
+	}
+	w.Languages()[0] = "xx"
+	if defaultSpeechLanguages[0] != "en" {
+		t.Fatal("Languages() exposed the default list")
+	}
+	path := filepath.Join(t.TempDir(), "custom.cact")
+	if err := os.WriteFile(path, testSpeechArchiveWithTokenizer("a", "<|pt|>", "<|en|>"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	w.weightsPath, w.languages = path, readSpeechLanguages(path)
+	if got := w.Languages(); !reflect.DeepEqual(got, []string{"pt", "en"}) {
+		t.Fatalf("custom Languages() = %q", got)
+	}
+	ctx := context.Background()
+	if _, err := w.Transcribe(ctx, []float32{0}, AudioOptions{Language: "pt"}); err != nil {
+		t.Fatalf("custom language rejected: %v", err)
+	}
+	if _, err := w.Transcribe(ctx, []float32{0}, AudioOptions{Language: "de"}); err == nil || !strings.Contains(err.Error(), "want one of pt, en") {
+		t.Fatalf("language outside the weights error = %v", err)
+	}
+	if _, err := w.Stream(AudioOptions{Language: "de"}); err == nil {
+		t.Fatal("stream accepted a language outside the weights")
+	}
+	if readSpeechLanguages(filepath.Join(t.TempDir(), "missing.cact")) != nil {
+		t.Fatal("missing weights returned languages")
 	}
 }

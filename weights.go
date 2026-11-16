@@ -2,8 +2,11 @@ package cactus
 
 import (
 	"encoding/binary"
+	"io"
 	"math"
 	"slices"
+	"strings"
+	"unicode/utf8"
 )
 
 // Model kinds match the engine's cactus_models bitmask.
@@ -294,4 +297,91 @@ type cactTensor struct {
 
 func (tensor cactTensor) matches(dtype byte, shape ...uint64) bool {
 	return tensor.dtype == dtype && slices.Equal(tensor.shape, shape)
+}
+
+// defaultSpeechLanguages are the languages of the published Whistle model,
+// used when an archive's tokenizer lists none.
+var defaultSpeechLanguages = []string{"en", "de", "fr", "es", "it", "nl", "pl"}
+
+const (
+	// A speech tokenizer is a 24-byte header whose first uint32 is the piece
+	// count, then per piece five bytes of score and flags, a uint16 length
+	// and the UTF-8 text.
+	tokenizerHeaderSize = 24
+	tokenizerPieceSize  = 7
+	maxTokenizerSize    = 64 << 20
+)
+
+// speechLanguages reads the language codes of a speech archive the way
+// upstream does: the trailing run of <|code|> pieces in the vocabulary of the
+// first raw tensor. It reads only the header, the tensor directory and the
+// tokenizer, and returns nil for an archive without that layout.
+func speechLanguages(r io.ReaderAt, size int64) []string {
+	if size < cactHeaderSize {
+		return nil
+	}
+	header := make([]byte, cactHeaderSize)
+	if _, err := r.ReadAt(header, 0); err != nil || binary.LittleEndian.Uint32(header) != needle3WeightsTag {
+		return nil
+	}
+	count := cactField(header, cactTensorCount)
+	directory := cactHeaderSize + cactField(header, cactCodebookSize)*4
+	if directory > uint64(size) || count > (uint64(size)-directory)/cactRecordSize {
+		return nil
+	}
+	records := make([]byte, count*cactRecordSize)
+	if _, err := r.ReadAt(records, int64(directory)); err != nil {
+		return nil
+	}
+	end := directory + count*cactRecordSize
+	for i := range count {
+		record := records[i*cactRecordSize : (i+1)*cactRecordSize]
+		if record[recDType] != dtypeRAW || record[recNDim] != 0 {
+			continue
+		}
+		offset, length := binary.LittleEndian.Uint64(record[recOffset:]), binary.LittleEndian.Uint64(record[recSize:])
+		if offset < end || offset > uint64(size) || length > uint64(size)-offset || length > maxTokenizerSize {
+			return nil
+		}
+		data := make([]byte, length)
+		if _, err := r.ReadAt(data, int64(offset)); err != nil {
+			return nil
+		}
+		return tokenizerLanguages(data)
+	}
+	return nil
+}
+
+func tokenizerLanguages(data []byte) []string {
+	if len(data) < tokenizerHeaderSize {
+		return nil
+	}
+	pieces := uint64(binary.LittleEndian.Uint32(data))
+	if pieces > uint64(len(data)-tokenizerHeaderSize)/tokenizerPieceSize {
+		return nil
+	}
+	var languages []string
+	at := tokenizerHeaderSize
+	for range pieces {
+		if len(data)-at < tokenizerPieceSize {
+			return nil
+		}
+		length := int(binary.LittleEndian.Uint16(data[at+5:]))
+		at += tokenizerPieceSize
+		if len(data)-at < length {
+			return nil
+		}
+		piece := string(data[at : at+length])
+		at += length
+		code, ok := strings.CutPrefix(piece, "<|")
+		if code, ok2 := strings.CutSuffix(code, "|>"); ok && ok2 && code != "" && utf8.ValidString(code) {
+			languages = append(languages, code)
+		} else {
+			languages = languages[:0]
+		}
+	}
+	if len(languages) == 0 {
+		return nil
+	}
+	return slices.Clip(languages)
 }

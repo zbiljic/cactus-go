@@ -38,7 +38,7 @@ type Stream struct {
 // options; WordTimestamps is ignored because every step carries word times.
 // Nothing reaches the engine until the first Process.
 func (w *Whistle) Stream(options AudioOptions) (*Stream, error) {
-	language, keywords, _, err := prepareAudio(nil, options)
+	language, keywords, _, err := w.prepareAudio(nil, options)
 	if err != nil {
 		return nil, err
 	}

@@ -8,6 +8,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -23,7 +24,8 @@ const (
 
 // AudioOptions controls language detection, keyword biasing and word timestamps.
 type AudioOptions struct {
-	// Language is empty for detection or en, de, fr, es, it, nl or pl.
+	// Language is empty for detection or one of Whistle.Languages: en, de,
+	// fr, es, it, nl or pl for the published model.
 	Language       string
 	Keywords       []string
 	WordTimestamps bool
@@ -60,6 +62,7 @@ type WhistleConfig struct {
 type Whistle struct {
 	runtime     *processRuntime
 	weightsPath string
+	languages   []string
 	buffer      []byte
 	closed      bool
 }
@@ -92,7 +95,7 @@ func NewWhistle(ctx context.Context, config WhistleConfig) (*Whistle, error) {
 	if err != nil {
 		return nil, err
 	}
-	w := &Whistle{runtime: runtimes[3], weightsPath: weightsPath, buffer: make([]byte, size)}
+	w := &Whistle{runtime: runtimes[3], weightsPath: weightsPath, languages: readSpeechLanguages(weightsPath), buffer: make([]byte, size)}
 	w.runtime.mu.Lock()
 	defer w.runtime.mu.Unlock()
 	if err := ctx.Err(); err != nil {
@@ -160,7 +163,7 @@ func (w *Whistle) Transcribe(ctx context.Context, pcm []float32, options AudioOp
 	if err := ctx.Err(); err != nil {
 		return Transcript{}, err
 	}
-	language, keywords, timestamps, err := prepareAudio(pcm, options)
+	language, keywords, timestamps, err := w.prepareAudio(pcm, options)
 	if err != nil {
 		return Transcript{}, err
 	}
@@ -187,6 +190,34 @@ func (w *Whistle) Transcribe(ctx context.Context, pcm []float32, options AudioOp
 		return Transcript{}, fmt.Errorf("cactus: decode transcript: %w", err)
 	}
 	return transcript, nil
+}
+
+// Languages returns the language codes the speech weights accept for
+// AudioOptions.Language, read from their tokenizer.
+func (w *Whistle) Languages() []string {
+	return slices.Clone(w.supportedLanguages())
+}
+
+func (w *Whistle) supportedLanguages() []string {
+	if len(w.languages) == 0 {
+		return defaultSpeechLanguages
+	}
+	return w.languages
+}
+
+// readSpeechLanguages falls back to the published languages when the archive
+// cannot be read; loading the weights reports that failure.
+func readSpeechLanguages(path string) []string {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil {
+		return nil
+	}
+	return speechLanguages(file, info.Size())
 }
 
 // Embed returns the speech encoder output for up to 30 seconds of PCM as
@@ -253,7 +284,7 @@ func (w *Whistle) Complete(ctx context.Context, textAgent *Agent, pcm []float32,
 	if maxNewTokens < 1 || maxNewTokens > math.MaxInt32 {
 		return Response{}, fmt.Errorf("cactus: invalid max new tokens %d", maxNewTokens)
 	}
-	language, keywords, timestamps, err := prepareAudio(pcm, options)
+	language, keywords, timestamps, err := w.prepareAudio(pcm, options)
 	if err != nil {
 		return Response{}, err
 	}
@@ -302,14 +333,13 @@ func checkPCM(pcm []float32) error {
 	return nil
 }
 
-func prepareAudio(pcm []float32, options AudioOptions) ([]byte, []byte, int32, error) {
+func (w *Whistle) prepareAudio(pcm []float32, options AudioOptions) ([]byte, []byte, int32, error) {
 	if err := checkPCM(pcm); err != nil {
 		return nil, nil, 0, err
 	}
-	switch options.Language {
-	case "", "en", "de", "fr", "es", "it", "nl", "pl":
-	default:
-		return nil, nil, 0, fmt.Errorf("cactus: unsupported speech language %q", options.Language)
+	if options.Language != "" && !slices.Contains(w.supportedLanguages(), options.Language) {
+		return nil, nil, 0, fmt.Errorf("cactus: unsupported speech language %q; want one of %s",
+			options.Language, strings.Join(w.supportedLanguages(), ", "))
 	}
 	language, err := cString("speech language", options.Language, true)
 	if err != nil {
