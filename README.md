@@ -226,9 +226,10 @@ is rejected with `ErrUnsupportedABI` before inference. Cactus engine failures
 include the engine's detailed native message.
 
 `FetchEngine` prepares the library and required base weights for offline use.
-`FetchOptions.Generation` selects the generation. Default caches are under
-`~/.cache/cactus-go/<engine-version>/<platform>/`;
-`CacheDir` selects an exact directory. Needle 2 uses `libneedle.*` and the
+`FetchOptions.Generation` selects the generation. By default, engines are cached
+under `~/.cache/cactus-go/<engine-version>/<platform>/` and model weights under
+`~/.cache/cactus-go/models/<checksum-prefix>/`, so an engine upgrade reuses
+unchanged weights. `CacheDir` selects one exact directory for both. Needle 2 uses `libneedle.*` and the
 Cactus engine uses `libcactus.*`, so the generations can share a custom cache
 directory for the same platform. For offline use, fetch for the
 target platform and generation, preserve the `.sha256` marker files, and use

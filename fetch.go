@@ -190,16 +190,15 @@ var (
 		artifacts:  artifacts,
 		weights:    baseWeights,
 	}
-	// whistleRelease pins the speech weights, which run on the Cactus engine
-	// and share its cache directory.
+	// whistleRelease pins the speech weights, which run on the Cactus engine.
 	whistleRelease = engineRelease{
 		generation: 3,
 		version:    EngineVersion,
 		artifacts:  artifacts,
 		weights:    speechWeights,
 	}
-	// mirageRelease pins the vision weights, which also share the Cactus
-	// engine cache directory.
+	// mirageRelease pins the vision weights, which also run on the Cactus
+	// engine.
 	mirageRelease = engineRelease{
 		generation: 3,
 		version:    EngineVersion,
@@ -406,7 +405,11 @@ func fetchWithOptions(
 	cacheDir := options.CacheDir
 	if cacheDir == "" {
 		var err error
-		cacheDir, err = defaultCacheDir(release, options.Platform)
+		if artifact.archivePath == "" {
+			cacheDir, err = defaultWeightsDir(artifact)
+		} else {
+			cacheDir, err = defaultCacheDir(release, options.Platform)
+		}
 		if err != nil {
 			return "", err
 		}
@@ -641,11 +644,30 @@ func defaultCacheDir(release engineRelease, platform Platform) (string, error) {
 	if _, ok := release.artifacts[platform]; !ok {
 		return "", fmt.Errorf("%w: %s", ErrUnsupportedPlatform, platform)
 	}
+	root, err := defaultCacheRoot()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(root, release.version, string(platform)), nil
+}
+
+// defaultWeightsDir keys model weights by checksum rather than engine version,
+// so an engine upgrade reuses unchanged weights and pins of different library
+// versions can share the cache.
+func defaultWeightsDir(artifact engineArtifact) (string, error) {
+	root, err := defaultCacheRoot()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(root, "models", artifact.checksum[:16]), nil
+}
+
+func defaultCacheRoot() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", fmt.Errorf("cactus: find home directory: %w", err)
 	}
-	return filepath.Join(home, ".cache", "cactus-go", release.version, string(platform)), nil
+	return filepath.Join(home, ".cache", "cactus-go"), nil
 }
 
 func isMusl() bool {

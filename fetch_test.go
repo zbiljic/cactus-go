@@ -198,7 +198,15 @@ func TestVerifiedCacheReuse(t *testing.T) {
 				}
 				for _, artifact := range cached {
 					contents := []byte("cached " + artifact.libraryName)
-					path := filepath.Join(directory, artifact.libraryName)
+					dir := directory
+					if override == "" && artifact.archivePath == "" {
+						// Default weights are shared by every engine version.
+						dir = filepath.Join(home, ".cache", "cactus-go", "models", artifact.checksum[:16])
+						if err := os.MkdirAll(dir, 0o755); err != nil {
+							t.Fatal(err)
+						}
+					}
+					path := filepath.Join(dir, artifact.libraryName)
 					if err := os.WriteFile(path, contents, 0o600); err != nil {
 						t.Fatal(err)
 					}
