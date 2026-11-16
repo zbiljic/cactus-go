@@ -86,6 +86,15 @@ func TestHelpAndMissingCommand(t *testing.T) {
 	if !strings.Contains(stderr.String(), "Usage: cactusz") {
 		t.Fatalf("missing command output = %q", stderr.String())
 	}
+
+	app, _, stderr = testApplication("")
+	app.deps.newAgent = func(context.Context, cactus.Config) (session, error) {
+		t.Fatal("agent created for invalid --threads")
+		return nil, nil
+	}
+	if code := app.run(context.Background(), []string{"complete", "--threads", "-1", "hi"}); code != 2 || !strings.Contains(stderr.String(), "threads") {
+		t.Fatalf("invalid --threads exit code = %d stderr=%q", code, stderr.String())
+	}
 }
 
 func TestFetch(t *testing.T) {

@@ -4,6 +4,7 @@ package cactus
 
 import (
 	"errors"
+	"reflect"
 	"strings"
 	"testing"
 	"unsafe"
@@ -23,6 +24,7 @@ func TestRegisterNativeABI(t *testing.T) {
 			var gotTokens, gotCapacity, gotSamples int32
 			var gotPCM *float32
 			transcriptions, audioSettings, streams := 0, 0, 0
+			var threads []int32
 			embedCalls, describes := 0, 0
 			embed := func(input *byte, output *float32, capacity int32) int32 {
 				embedCalls++
@@ -82,6 +84,7 @@ func TestRegisterNativeABI(t *testing.T) {
 						t.Error("audio options were not cleared")
 					}
 				})
+				symbols[prefix+"set_threads"] = purego.NewCallback(func(count int32) { threads = append(threads, count) })
 				symbols[prefix+"embed"] = purego.NewCallback(func(input *byte, pcm *float32, samples int32, output *float32, capacity int32) int32 {
 					if pcm != nil || samples != 0 {
 						t.Error("text embedding received audio arguments")
@@ -156,6 +159,11 @@ func TestRegisterNativeABI(t *testing.T) {
 				if models := api.models(); models != 7 {
 					t.Fatalf("models = %d", models)
 				}
+				api.setThreads(3)
+				api.setThreads(0)
+				if !reflect.DeepEqual(threads, []int32{3, 0}) {
+					t.Fatalf("set_threads calls = %v", threads)
+				}
 			}
 			if modern {
 				vector := make([]float32, 2)
@@ -164,7 +172,7 @@ func TestRegisterNativeABI(t *testing.T) {
 				}
 			} else {
 				if api.embed != nil || api.lastError != nil || api.transcribe != nil || api.setAudio != nil ||
-					api.completeAudio != nil || api.streamProcess != nil || api.streamStop != nil || api.describe != nil || api.models != nil {
+					api.completeAudio != nil || api.streamProcess != nil || api.streamStop != nil || api.describe != nil || api.models != nil || api.setThreads != nil {
 					t.Fatal("Needle 2 engine bound Cactus engine functions")
 				}
 				// A pre-4.0 Needle 3 library shares the four names with a different completion.

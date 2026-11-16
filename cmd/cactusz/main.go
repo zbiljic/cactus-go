@@ -210,7 +210,10 @@ type agentOptions struct {
 	toolIndex   string
 	bufferSize  int
 	maxTokens   int
+	threads     int
 }
+
+const threadsUsage = "CPU threads for the Cactus engine; 0 uses the engine's automatic count"
 
 func addAgentFlags(flags *flag.FlagSet, options *agentOptions) {
 	flags.IntVar(
@@ -226,6 +229,7 @@ func addAgentFlags(flags *flag.FlagSet, options *agentOptions) {
 	flags.StringVar(&options.toolIndex, "tool-index", "", "path to persistent tool embeddings")
 	flags.IntVar(&options.bufferSize, "buffer-size", 0, "native response buffer size")
 	flags.IntVar(&options.maxTokens, "max-tokens", cactus.DefaultMaxNewTokens, "response token limit")
+	flags.IntVar(&options.threads, "threads", 0, threadsUsage)
 }
 
 func (a *application) agentConfig(options agentOptions) (cactus.Config, error) {
@@ -239,6 +243,9 @@ func (a *application) agentConfig(options agentOptions) (cactus.Config, error) {
 			return cactus.Config{}, fmt.Errorf("read system file: %w", err)
 		}
 		system = string(data)
+	}
+	if err := cactus.SetThreads(options.threads); err != nil {
+		return cactus.Config{}, usageError{err}
 	}
 	var tools []cactus.Tool
 	if options.toolsPath != "" {

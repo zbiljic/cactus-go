@@ -14,7 +14,7 @@ var needle2Symbols = []string{"init", "complete", "reset", "load"}
 
 // cactusSymbols is the cactus_* ABI that the Cactus engine exports in full.
 var cactusSymbols = []string{
-	"load", "models", "last_error", "init", "complete", "set_audio", "reset",
+	"load", "models", "last_error", "init", "complete", "set_audio", "set_threads", "reset",
 	"embed", "transcribe", "stream_transcribe_process", "stream_transcribe_stop",
 	"describe",
 }
@@ -64,6 +64,7 @@ func registerNative(
 	purego.RegisterFunc(&api.lastError, address["last_error"])
 	purego.RegisterFunc(&api.transcribe, address["transcribe"])
 	purego.RegisterFunc(&api.setAudio, address["set_audio"])
+	purego.RegisterFunc(&api.setThreads, address["set_threads"])
 	purego.RegisterFunc(&api.streamProcess, address["stream_transcribe_process"])
 	purego.RegisterFunc(&api.streamStop, address["stream_transcribe_stop"])
 	purego.RegisterFunc(&api.describe, address["describe"])

@@ -74,7 +74,7 @@ func main() {
 ```
 
 By default, `cactus.New` downloads and caches the pinned
-[Cactus engine](https://huggingface.co/Cactus-Compute/cactus) (4.0.0) and the
+[Cactus engine](https://huggingface.co/Cactus-Compute/cactus) (4.1.1) and the
 `needle3.cact` base weights (~35 MB) from the
 [Needle 3 model repository](https://huggingface.co/Cactus-Compute/needle3).
 Subsequent runs use the cached files. No Python installation is required.
@@ -111,6 +111,22 @@ queries.
 `Close` releases an agent's response buffer and native binding; later calls
 return `ErrClosed`. The engine and loaded weights stay in the process for other
 agents. `Whistle` and `Mirage` have the same `Close`.
+
+## Threads
+
+The Cactus engine picks a CPU thread count automatically. `SetThreads` sets a
+process-wide count for the Needle 3, Whistle and Mirage weights loaded after
+the call; zero restores the automatic count. The engine reads it when it loads
+weights, and loaded weights keep the count they were loaded with, so call it
+before the first `New`, `NewWhistle` or `NewMirage`:
+
+```go
+if err := cactus.SetThreads(2); err != nil {
+	log.Fatal(err)
+}
+```
+
+The Needle 2 engine ignores it. `cactusz` takes the same setting as `--threads`.
 
 ## Text embeddings
 

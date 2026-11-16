@@ -21,7 +21,7 @@ const (
 	// EngineVersion is the Cactus engine version, which runs Needle 3 (the
 	// default generation), Whistle and Mirage. Needle 2 keeps its own engine; see
 	// EngineVersionFor.
-	EngineVersion = "4.0.0"
+	EngineVersion = "4.1.1"
 
 	maxArtifactSize = 64 << 20
 )
@@ -107,12 +107,12 @@ var artifactsV2 = map[Platform]engineArtifact{
 }
 
 // cactusWheel pins a runtime wheel from the Cactus engine release. Sizes and
-// checksums come from releases/4.0.0/manifest.json (sha256
-// b6a39fb21bc77780c029c45d4cc206b60f883146fa2dbc28bfcc9995fe72b871).
+// checksums come from releases/4.1.1/manifest.json (sha256
+// 27168631232dbff52a205b54bbfad54fd9b81f06fa368657d07449e2221f5e25).
 func cactusWheel(tag, library string, size int64, checksum string) engineArtifact {
 	return engineArtifact{
 		repo:     "Cactus-Compute/cactus",
-		revision: "1a028f5a3972b67dd8d8752f882113d475e7ec4c",
+		revision: "d2c5cd70432ed78345f3ba6b620bff2feeec6c86",
 		path: "releases/" + EngineVersion + "/python/cactus_runtime-" + EngineVersion +
 			"-py3-none-" + tag + ".whl",
 		size:        size,
@@ -123,22 +123,22 @@ func cactusWheel(tag, library string, size int64, checksum string) engineArtifac
 }
 
 var artifacts = map[Platform]engineArtifact{
-	PlatformDarwinARM64: cactusWheel("macosx_11_0_arm64", "libcactus.dylib", 720571,
-		"782a43480285bf36e7dda947f50496dc597dceb26a8f8f9406d89fbe7ce96a1c"),
-	PlatformDarwinAMD64: cactusWheel("macosx_11_0_x86_64", "libcactus.dylib", 780485,
-		"ba674f62f53d91328d0b925ba9c179c15f6fef04865b334ac9c505d83d5932da"),
-	PlatformLinuxARM64: cactusWheel("manylinux2014_aarch64", "libcactus.so", 821557,
-		"4125d3630028409a11ba460af9561e2dc2010d777e0ff7413528f6c5dd43a67e"),
-	PlatformLinuxAMD64: cactusWheel("manylinux2014_x86_64", "libcactus.so", 854907,
-		"6b6f1c75acf8eb35c465bfd1f845351448c33804933c806d3406e2be35a40e01"),
-	PlatformLinuxARM64Musl: cactusWheel("musllinux_1_2_aarch64", "libcactus.so", 820401,
-		"265d9710d3ad0a5512041f56ee2cd12881d9aac28b037686de84683528df2807"),
-	PlatformLinuxAMD64Musl: cactusWheel("musllinux_1_2_x86_64", "libcactus.so", 855569,
-		"03d62a86e2f41a47415b2f5f8fd75e2cfebfe839d80f1d72d99120722a0f12b1"),
-	PlatformWindowsAMD64: cactusWheel("win_amd64", "libcactus.dll", 863759,
-		"fc7ffdb7bc55e2e25b3c62a67a6edcd337026fe0d8fb8facc3a359df85399c12"),
-	PlatformWindowsARM64: cactusWheel("win_arm64", "libcactus.dll", 783427,
-		"9e2e0a44585aea5927108cee570dee50b27972b4e5f6791c42a5896bd0d4f0be"),
+	PlatformDarwinARM64: cactusWheel("macosx_11_0_arm64", "libcactus.dylib", 722805,
+		"16ce3c02e87db1ef3ab3974d5d31ff0680bb1004cd49b3606d5cfe4db8b9b536"),
+	PlatformDarwinAMD64: cactusWheel("macosx_11_0_x86_64", "libcactus.dylib", 781063,
+		"a1c382375b6df5f1f57f075e48c5fcd9da84b666a2c97bd4b49c10543b8b905f"),
+	PlatformLinuxARM64: cactusWheel("manylinux2014_aarch64", "libcactus.so", 822733,
+		"5b67ab4a5b44ee846e7662940e2dd854006ec8766c63c81405338428576e914d"),
+	PlatformLinuxAMD64: cactusWheel("manylinux2014_x86_64", "libcactus.so", 856749,
+		"b48fe924d108f84bbe265539920b1b2b98daf936e22af461408f1856a41546d6"),
+	PlatformLinuxARM64Musl: cactusWheel("musllinux_1_2_aarch64", "libcactus.so", 822507,
+		"d2cba6fba4cca494298c75259a881da62bcac543b0da8fddf92678566d811a2e"),
+	PlatformLinuxAMD64Musl: cactusWheel("musllinux_1_2_x86_64", "libcactus.so", 857831,
+		"ae4f0f9d7245f37da155816e8ef62725dea905dc3c47664416105fba7dd3698f"),
+	PlatformWindowsAMD64: cactusWheel("win_amd64", "libcactus.dll", 865905,
+		"876eea21e31bcad795b9e84cfaadf65e01a32a64ef113c8b77616d33ab8e3169"),
+	PlatformWindowsARM64: cactusWheel("win_arm64", "libcactus.dll", 785327,
+		"a5cebd1cac7cb5e54f0405a2c6e5f492e5c103fd2cc9895a766583575c3c70ce"),
 }
 
 var baseWeights = engineArtifact{

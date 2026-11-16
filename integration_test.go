@@ -147,3 +147,24 @@ func TestNativeEngineDiagnostics(t *testing.T) {
 		t.Fatalf("native initialization diagnostic = %v", err)
 	}
 }
+
+func TestNativeThreads(t *testing.T) {
+	if os.Getenv("CACTUS_TEST_NATIVE") != "1" {
+		t.Skip("set CACTUS_TEST_NATIVE=1 to test native thread control")
+	}
+	// The engine reads the count when it loads weights, so set it first.
+	ctx := context.Background()
+	if err := SetThreads(1); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = SetThreads(0) })
+	a, err := New(ctx, Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer a.Close()
+	response, err := a.Complete(ctx, "hello", 32)
+	if err != nil || !response.Success {
+		t.Fatalf("response=%+v err=%v", response, err)
+	}
+}

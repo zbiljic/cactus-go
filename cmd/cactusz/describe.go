@@ -31,6 +31,7 @@ func (a *application) runDescribe(ctx context.Context, args []string) error {
 	libraryPath := flags.String("library", "", "path to the engine shared library")
 	cacheDir := flags.String("cache", "", "engine cache directory")
 	bufferSize := flags.Int("buffer-size", 0, "native response buffer size")
+	threads := flags.Int("threads", 0, threadsUsage)
 	formPath := flags.String("form", "", "path to a JSON object of form fields to fill, in order")
 	sections := flags.String("sections", "", "comma-separated sections: scene, objects, regions, text, relations, events, reasoning")
 	fields := flags.String("fields", "", "comma-separated details: bbox, score, point, mask, position, description; none for IDs and names only")
@@ -58,6 +59,9 @@ func (a *application) runDescribe(ctx context.Context, args []string) error {
 	}
 	if flags.NArg() != 1 {
 		return usageError{errors.New("describe takes one image path")}
+	}
+	if err := cactus.SetThreads(*threads); err != nil {
+		return usageError{err}
 	}
 	options := cactus.DescribeOptions{
 		MaskFormat:     cactus.MaskFormat(*maskFormat),

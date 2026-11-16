@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"math"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -1149,5 +1150,45 @@ func TestClose(t *testing.T) {
 	}
 	if len(fake.systems) != 2 || runtime.active != other {
 		t.Fatalf("init calls = %d, active = %p", len(fake.systems), runtime.active)
+	}
+}
+
+func TestSetThreads(t *testing.T) {
+	r := runtimes[3]
+	r.mu.Lock()
+	savedAPI, savedThreads := r.api, r.threads
+	r.api = nil
+	r.mu.Unlock()
+	t.Cleanup(func() {
+		r.mu.Lock()
+		r.api, r.threads = savedAPI, savedThreads
+		r.mu.Unlock()
+	})
+
+	// Before the engine loads, the count is kept for the load.
+	if err := SetThreads(4); err != nil {
+		t.Fatal(err)
+	}
+	if r.threads != 4 {
+		t.Fatalf("stored threads = %d, want 4", r.threads)
+	}
+
+	var calls []int32
+	r.mu.Lock()
+	r.api = &nativeAPI{setThreads: func(count int32) { calls = append(calls, count) }}
+	r.mu.Unlock()
+	if err := SetThreads(2); err != nil {
+		t.Fatal(err)
+	}
+	if err := SetThreads(0); err != nil {
+		t.Fatal(err)
+	}
+	for _, bad := range []int{-1, math.MaxInt32 + 1} {
+		if err := SetThreads(bad); err == nil || !strings.Contains(err.Error(), "threads") {
+			t.Fatalf("SetThreads(%d) error = %v", bad, err)
+		}
+	}
+	if !reflect.DeepEqual(calls, []int32{2, 0}) || r.threads != 0 {
+		t.Fatalf("set_threads calls = %v, stored = %d", calls, r.threads)
 	}
 }

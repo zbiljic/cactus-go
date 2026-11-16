@@ -116,6 +116,7 @@ func TestDescribeUsageErrors(t *testing.T) {
 		{"describe", "--options", "[]", path},
 		{"describe", "--options", "{", path},
 		{"describe", "--nms", "maybe", path},
+		{"describe", "--threads", "-1", path},
 	} {
 		app, _, stderr := testApplication("")
 		app.deps.newMirage = func(context.Context, cactus.MirageConfig) (describer, error) {

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -25,6 +26,7 @@ type nativeAPI struct {
 	streamProcess func(*float32, int32, *byte, *byte, []byte, int32) int32
 	streamStop    func([]byte, int32) int32
 	setAudio      func(*byte, *byte, int32)
+	setThreads    func(int32)
 	embed         func(*byte, []float32, int32) int32
 	describe      func([]byte, int32, int32, *byte, *byte, *byte, []byte, int32) int32
 	models        func() int32
@@ -57,9 +59,31 @@ type processRuntime struct {
 	visionWeights string
 	// stream is the open live transcription, which the engine holds one of.
 	stream *Stream
+	// threads is the CPU thread count for the Cactus engine; zero is automatic.
+	threads int32
 }
 
 var runtimes = map[int]*processRuntime{2: {}, 3: {}}
+
+// SetThreads sets the number of CPU threads the Cactus engine uses for Needle 3,
+// Whistle and Mirage weights loaded after the call, or zero for the engine's
+// automatic count. The engine reads the count when it loads weights, and loaded
+// weights keep the count they were loaded with, so call SetThreads before the
+// first New, NewWhistle or NewMirage. The setting is process-wide and holds for an
+// engine loaded later. The Needle 2 engine ignores it.
+func SetThreads(threads int) error {
+	if threads < 0 || threads > math.MaxInt32 {
+		return fmt.Errorf("cactus: threads must be zero or a positive count, got %d", threads)
+	}
+	r := runtimes[3]
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.threads = int32(threads)
+	if r.api != nil && r.api.setThreads != nil {
+		r.api.setThreads(r.threads)
+	}
+	return nil
+}
 
 // WeightsGeneration reads a .cact header and returns its model generation.
 // It does not validate the rest of the archive.
@@ -108,6 +132,9 @@ func (r *processRuntime) ensureLibraryLocked(path string, generation int) error 
 	api, err := loadNative(absolute, generation)
 	if err != nil {
 		return err
+	}
+	if api.setThreads != nil {
+		api.setThreads(r.threads)
 	}
 	r.api = api
 	r.libraryPath = absolute
