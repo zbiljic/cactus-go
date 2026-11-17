@@ -186,7 +186,7 @@ func TestVerifiedCacheReuse(t *testing.T) {
 				options := FetchOptions{Generation: generation, Platform: platform, CacheDir: override, Client: client}
 				directory := override
 				if directory == "" {
-					directory = filepath.Join(home, ".cache", "cactus-go", release.version, string(resolved))
+					directory = filepath.Join(home, ".cache", "cactus", release.version, string(resolved))
 				}
 				if err := os.MkdirAll(directory, 0o755); err != nil {
 					t.Fatal(err)
@@ -201,7 +201,7 @@ func TestVerifiedCacheReuse(t *testing.T) {
 					dir := directory
 					if override == "" && artifact.archivePath == "" {
 						// Default weights are shared by every engine version.
-						dir = filepath.Join(home, ".cache", "cactus-go", "models", artifact.checksum[:16])
+						dir = filepath.Join(home, ".cache", "cactus", "models", artifact.checksum[:16])
 						if err := os.MkdirAll(dir, 0o755); err != nil {
 							t.Fatal(err)
 						}

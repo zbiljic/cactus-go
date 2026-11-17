@@ -91,7 +91,7 @@ jobs:
       - name: Cache native engine
         uses: actions/cache@v6
         with:
-          path: ~/.cache/cactus-go
+          path: ~/.cache/cactus
           key: cactus-engine-${{ matrix.platform }}-${{ hashFiles('fetch.go') }}
 
       - name: Fetch native engine

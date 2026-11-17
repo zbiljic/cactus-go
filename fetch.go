@@ -667,7 +667,7 @@ func defaultCacheRoot() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("cactus: find home directory: %w", err)
 	}
-	return filepath.Join(home, ".cache", "cactus-go"), nil
+	return filepath.Join(home, ".cache", "cactus"), nil
 }
 
 func isMusl() bool {
