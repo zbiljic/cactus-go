@@ -106,6 +106,23 @@ between its tool rounds. Keep the default stateful mode for manual tool loops
 that feed results back through `Complete`, and call `Reset` between independent
 queries.
 
+## System facts
+
+`Config.System` carries environment state as facts, not instructions, such as
+`date`, `locale`, `device`, `battery`, `network`, `location`, `user` and
+`assistant`. The engine resolves relative dates such as "tomorrow" or
+"March 4th" only against a `date:` fact; without one, such requests return no
+call. `DateFact` writes it in the expected form:
+
+```go
+agent, err := cactus.New(ctx, cactus.Config{
+	Tools:  tools,
+	System: cactus.DateFact(time.Now()) + "; locale: en-US",
+})
+```
+
+Facts are fixed when the agent is created.
+
 ## Validation
 
 `Run` rejects a turn the engine flags as negated or ungrounded before executing
