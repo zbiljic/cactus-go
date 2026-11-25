@@ -81,7 +81,7 @@ func TestEvaluateResponse(t *testing.T) {
 		{name: "set_timer", arguments: json.RawMessage(`{"minutes":10}`), hasArguments: true},
 	}
 	result := evaluateResponse(response, want)
-	if !result.call || !result.name || !result.exact || result.actual != "get_weather>set_timer" {
+	if !result.call || !result.name || !result.exact || result.actual != "get_weather, set_timer" {
 		t.Fatalf("evaluation result = %#v", result)
 	}
 
@@ -343,5 +343,196 @@ func writeTestFile(t *testing.T, path, data string) {
 	t.Helper()
 	if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestEvaluateResponseMatchesInAnyOrder(t *testing.T) {
+	t.Parallel()
+
+	response := cactus.Response{Type: cactus.ResponseCall, Success: true, FunctionCalls: []cactus.FunctionCall{
+		{Name: "set_timer", Arguments: json.RawMessage(`{"minutes":5}`)},
+		{Name: "set_timer", Arguments: json.RawMessage(`{"minutes":10}`)},
+		{Name: "get_weather", Arguments: json.RawMessage(`{"city":"Paris"}`)},
+	}}
+	tests := []struct {
+		name                string
+		want                []evaluationExpectation
+		wantName, wantExact bool
+	}{
+		{"reordered", []evaluationExpectation{
+			{name: "get_weather", arguments: json.RawMessage(`{"city":"Paris"}`), hasArguments: true},
+			{name: "set_timer", arguments: json.RawMessage(`{"minutes":10}`), hasArguments: true},
+			{name: "set_timer", arguments: json.RawMessage(`{"minutes":5}`), hasArguments: true},
+		}, true, true},
+		{"name-only listed before the call it must not take", []evaluationExpectation{
+			{name: "set_timer"},
+			{name: "set_timer", arguments: json.RawMessage(`{"minutes":5}`), hasArguments: true},
+			{name: "get_weather"},
+		}, true, true},
+		{"argument mismatch", []evaluationExpectation{
+			{name: "set_timer", arguments: json.RawMessage(`{"minutes":5}`), hasArguments: true},
+			{name: "set_timer", arguments: json.RawMessage(`{"minutes":5}`), hasArguments: true},
+			{name: "get_weather"},
+		}, true, false},
+		{"missing call", []evaluationExpectation{{name: "set_timer"}, {name: "get_weather"}}, false, false},
+		{"string case differs", []evaluationExpectation{
+			{name: "get_weather", arguments: json.RawMessage(`{"city":"paris"}`), hasArguments: true},
+			{name: "set_timer"}, {name: "set_timer"},
+		}, true, true},
+		{"string differs", []evaluationExpectation{
+			{name: "get_weather", arguments: json.RawMessage(`{"city":"Lyon"}`), hasArguments: true},
+			{name: "set_timer"}, {name: "set_timer"},
+		}, true, false},
+	}
+	for _, test := range tests {
+		result := evaluateResponse(response, test.want)
+		if result.name != test.wantName || result.exact != test.wantExact {
+			t.Errorf("%s: name = %v exact = %v, want %v %v (%s)", test.name, result.name, result.exact, test.wantName, test.wantExact, result.detail)
+		}
+	}
+}
+
+func TestEvaluateResponseRejectsFlaggedCalls(t *testing.T) {
+	t.Parallel()
+
+	response := cactus.Response{
+		Type: cactus.ResponseCall, Success: true,
+		FunctionCalls: []cactus.FunctionCall{{Name: "pay", Arguments: json.RawMessage(`{"amount":25.5}`)}},
+		Validation:    &cactus.Validation{Ungrounded: []string{"pay.amount"}},
+	}
+	want := []evaluationExpectation{{name: "pay", arguments: json.RawMessage(`{"amount":25.5}`), hasArguments: true}}
+	if result := evaluateResponse(response, want, "pay $25.50"); !result.exact || result.rejected != "" {
+		t.Fatalf("sourced number: %#v", result)
+	}
+	result := evaluateResponse(response, want, "pay the usual")
+	if result.exact || result.name || !strings.Contains(result.rejected, "pay.amount") ||
+		!strings.Contains(result.detail, "rejected:") {
+		t.Fatalf("unsourced number: %#v", result)
+	}
+	if result := evaluateResponse(response, nil, "pay the usual"); !result.exact {
+		t.Fatalf("rejected call scored against no call: %#v", result)
+	}
+}
+
+func TestEvalCriticalCases(t *testing.T) {
+	t.Parallel()
+
+	temporary := t.TempDir()
+	toolsPath := filepath.Join(temporary, "tools.json")
+	casesPath := filepath.Join(temporary, "cases.jsonl")
+	systemPath := filepath.Join(temporary, "system.txt")
+	writeTestFile(t, toolsPath, `[{"name":"set_timer","parameters":{"type":"object"}}]`)
+	writeTestFile(t, systemPath, "budget: 40\n")
+	writeTestFile(t, casesPath, strings.Join([]string{
+		`{"input":"timer for 75","want":[{"name":"set_timer","arguments":{"minutes":75}}]}`,
+		`{"input":"a timer for negative 5 minutes","want":[],"critical":true}`,
+		`{"input":"start a timer","want":[],"critical":false}`,
+		`{"input":"timer for the budget","want":[{"name":"set_timer","arguments":{"minutes":40}}]}`,
+	}, "\n"))
+	call := func(arguments, validation string) cactus.Response {
+		response := cactus.Response{Type: cactus.ResponseCall, Success: true,
+			FunctionCalls: []cactus.FunctionCall{{Name: "set_timer", Arguments: json.RawMessage(arguments)}}}
+		if validation != "" {
+			response.Validation = &cactus.Validation{Ungrounded: []string{validation}}
+		}
+		return response
+	}
+	fake := &fakeAgent{responses: []cactus.Response{
+		call(`{"minutes":75}`, "set_timer.minutes"),
+		call(`{"minutes":5}`, ""),
+		call(`{"minutes":1}`, "set_timer.minutes"),
+		call(`{"minutes":40}`, "set_timer.minutes"),
+	}}
+	app, stdout, stderr := testApplication("")
+	var gotConfig cactus.Config
+	app.deps.newAgent = func(_ context.Context, config cactus.Config) (session, error) {
+		gotConfig = config
+		return fake, nil
+	}
+	code := app.run(context.Background(), []string{
+		"eval", "--tools", toolsPath, "--cases", casesPath, "--system-file", systemPath, "--format", "json",
+	})
+	if code == 0 || !strings.Contains(stderr.String(), "critical cases failed: 1") {
+		t.Fatalf("eval exit code = %d, stderr = %q", code, stderr.String())
+	}
+	if gotConfig.System != "budget: 40" {
+		t.Fatalf("system = %q", gotConfig.System)
+	}
+	var report evaluationReport
+	if err := json.Unmarshal(stdout.Bytes(), &report); err != nil {
+		t.Fatal(err)
+	}
+	summary := report.Summary
+	if report.SchemaVersion != 2 || summary.ExactMatches != 3 || summary.CriticalCases != 1 ||
+		summary.CriticalFailures != 1 || summary.Passed {
+		t.Fatalf("summary = %+v", summary)
+	}
+	if !report.Cases[1].Critical || report.Cases[1].ExactMatch || report.Cases[2].Rejected == "" || !report.Cases[2].ExactMatch {
+		t.Fatalf("cases = %+v", report.Cases)
+	}
+}
+
+func TestParseEvaluationCaseCritical(t *testing.T) {
+	t.Parallel()
+
+	evaluation, err := parseEvaluationCase([]byte(`{"input":"x","want":[],"critical":true}`))
+	if err != nil || !evaluation.critical {
+		t.Fatalf("parse = %+v, %v", evaluation, err)
+	}
+	if _, err := parseEvaluationCase([]byte(`{"input":"x","want":[],"critical":"yes"}`)); err == nil {
+		t.Fatal("string critical accepted")
+	}
+}
+
+func TestEvaluateResponseScoresFailedResponses(t *testing.T) {
+	t.Parallel()
+
+	code := "truncated"
+	failed := cactus.Response{Type: cactus.ResponseCall, Success: false, ErrorCode: &code}
+	if result := evaluateResponse(failed, nil); !result.exact || result.detail != " (response failed: truncated)" {
+		t.Fatalf("failed refusal = %#v", result)
+	}
+	want := []evaluationExpectation{{name: "set_timer"}}
+	if result := evaluateResponse(failed, want); result.exact || result.detail != " (want set_timer) (response failed: truncated)" {
+		t.Fatalf("failed call = %#v", result)
+	}
+}
+
+func TestEvalTextMarksCriticalFailuresAndRejections(t *testing.T) {
+	t.Parallel()
+
+	temporary := t.TempDir()
+	toolsPath := filepath.Join(temporary, "tools.json")
+	casesPath := filepath.Join(temporary, "cases.jsonl")
+	writeTestFile(t, toolsPath, `[{"name":"skip_track","parameters":{"type":"object"}}]`)
+	writeTestFile(t, casesPath, strings.Join([]string{
+		`{"input":"don't skip this song","want":[],"critical":true}`,
+		`{"input":"skip it","want":[],"critical":true}`,
+		`{"input":"never skip","want":[]}`,
+	}, "\n"))
+	code := "truncated"
+	fake := &fakeAgent{responses: []cactus.Response{
+		{Type: cactus.ResponseCall, Success: true, FunctionCalls: []cactus.FunctionCall{{Name: "skip_track", Arguments: json.RawMessage(`{}`)}},
+			Validation: &cactus.Validation{Negation: true}},
+		{Type: cactus.ResponseCall, Success: true, FunctionCalls: []cactus.FunctionCall{{Name: "skip_track", Arguments: json.RawMessage(`{}`)}}},
+		{Type: cactus.ResponseCall, Success: false, ErrorCode: &code},
+	}}
+	app, stdout, _ := testApplication("")
+	app.deps.newAgent = func(context.Context, cactus.Config) (session, error) { return fake, nil }
+	if exit := app.run(context.Background(), []string{"eval", "--tools", toolsPath, "--cases", casesPath}); exit == 0 {
+		t.Fatal("eval passed with a critical failure")
+	}
+	output := stdout.String()
+	for _, want := range []string{
+		`✓ 1 "don't skip this song" -> skip_track (conf -, `,
+		`) (rejected: cactus: response validation: negation detected)`,
+		`✗! 2 "skip it" -> skip_track`,
+		`✓ 3 "never skip" -> (no call)`,
+		`(response failed: truncated)`,
+		`critical failures 1/2, failed responses 1`,
+	} {
+		if !strings.Contains(output, want) {
+			t.Errorf("output lacks %q:\n%s", want, output)
+		}
 	}
 }

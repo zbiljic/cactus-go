@@ -242,7 +242,7 @@ func (a *application) agentConfig(options agentOptions) (cactus.Config, error) {
 		if err != nil {
 			return cactus.Config{}, fmt.Errorf("read system file: %w", err)
 		}
-		system = string(data)
+		system = strings.TrimRight(string(data), "\r\n")
 	}
 	if err := cactus.SetThreads(options.threads); err != nil {
 		return cactus.Config{}, usageError{err}

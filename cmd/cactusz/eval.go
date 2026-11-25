@@ -20,12 +20,13 @@ const (
 	evalInputDisplayLimit         = 64
 	evaluationFormatJSON          = "json"
 	evaluationFormatText          = "text"
-	evaluationReportSchemaVersion = 1
+	evaluationReportSchemaVersion = 2
 )
 
 type evaluationCase struct {
-	input string
-	want  []evaluationExpectation
+	input    string
+	want     []evaluationExpectation
+	critical bool
 }
 
 type evaluationExpectation struct {
@@ -40,6 +41,7 @@ type evaluationResult struct {
 	exact      bool
 	actual     string
 	detail     string
+	rejected   string
 	confidence *float64
 }
 
@@ -57,8 +59,11 @@ type evaluationCaseReport struct {
 	CallResponse bool                          `json:"call_response"`
 	NameMatch    bool                          `json:"name_match"`
 	ExactMatch   bool                          `json:"exact_match"`
-	DurationMS   int64                         `json:"duration_ms"`
-	textResult   evaluationResult
+	Critical     bool                          `json:"critical,omitempty"`
+	// Rejected is the validation error that made the calls count as none.
+	Rejected   string `json:"rejected,omitempty"`
+	DurationMS int64  `json:"duration_ms"`
+	textResult evaluationResult
 }
 
 type evaluationReportExpectation struct {
@@ -67,10 +72,15 @@ type evaluationReportExpectation struct {
 }
 
 type evaluationSummary struct {
-	Total             int      `json:"total"`
-	CallResponses     int      `json:"call_responses"`
-	NameMatches       int      `json:"name_matches"`
-	ExactMatches      int      `json:"exact_matches"`
+	Total            int `json:"total"`
+	CallResponses    int `json:"call_responses"`
+	NameMatches      int `json:"name_matches"`
+	ExactMatches     int `json:"exact_matches"`
+	CriticalCases    int `json:"critical_cases"`
+	CriticalFailures int `json:"critical_failures"`
+	// FailedResponses counts responses that report no success; their calls
+	// are still scored.
+	FailedResponses   int      `json:"failed_responses"`
 	Score             float64  `json:"score"`
 	MinimumScore      float64  `json:"minimum_score"`
 	Passed            bool     `json:"passed"`
@@ -83,7 +93,11 @@ func (a *application) runEval(ctx context.Context, args []string) error {
 		`Evaluate a tool set against isolated JSONL prompt cases.
 
 Each line must contain "input" and a "want" array. Expectations may be tool
-names or objects with "name" and exact "arguments" fields.`,
+names or objects with "name" and "arguments" fields, matched in any order and
+with strings compared without case. Calls that response validation rejects,
+with the input and system facts as sources, count as no call, and a failed
+response is scored by its calls. A case with "critical": true fails the run
+when it fails.`,
 		"eval [options]",
 	)
 	var options agentOptions
@@ -126,35 +140,82 @@ names or objects with "name" and exact "arguments" fields.`,
 		return fmt.Errorf("initialize agent: %w", err)
 	}
 
+	if *outputFormat == evaluationFormatText {
+		fmt.Fprintf(a.stdout, "Needle evaluation: %d cases\n", len(cases))
+	}
+	report, err := evaluateCases(ctx, agent, cases, config.System, options.maxTokens,
+		func(caseReport evaluationCaseReport, duration time.Duration) {
+			if *outputFormat == evaluationFormatText {
+				writeTextEvaluationCase(a.stdout, caseReport, duration)
+			}
+		})
+	if err != nil {
+		return err
+	}
+	report.Summary.MinimumScore = *minScore
+	scorePassed := *minScore == 0 || report.Summary.Score+1e-12 >= *minScore
+	report.Summary.Passed = scorePassed && report.Summary.CriticalFailures == 0
+	if *outputFormat == evaluationFormatJSON {
+		if err := writeJSON(a.stdout, report, false); err != nil {
+			return err
+		}
+	} else {
+		writeTextEvaluationSummary(a.stdout, report.Summary)
+	}
+	if !scorePassed {
+		return fmt.Errorf("exact-match score %.3f is below --min-score %.3f", report.Summary.Score, *minScore)
+	}
+	if report.Summary.CriticalFailures > 0 {
+		return fmt.Errorf("critical cases failed: %d", report.Summary.CriticalFailures)
+	}
+	return nil
+}
+
+// evaluateCases runs each case on a reset session and scores it. onCase, when
+// set, sees each case as it completes.
+func evaluateCases(
+	ctx context.Context,
+	agent session,
+	cases []evaluationCase,
+	system string,
+	maxTokens int,
+	onCase func(evaluationCaseReport, time.Duration),
+) (evaluationReport, error) {
 	started := time.Now()
-	callCount, nameCount, exactCount := 0, 0, 0
-	confidenceTotal, confidenceCount := 0.0, 0
 	report := evaluationReport{
 		SchemaVersion: evaluationReportSchemaVersion,
 		Cases:         make([]evaluationCaseReport, 0, len(cases)),
 	}
-	if *outputFormat == evaluationFormatText {
-		fmt.Fprintf(a.stdout, "Needle evaluation: %d cases\n", len(cases))
-	}
+	summary := &report.Summary
+	confidenceTotal, confidenceCount := 0.0, 0
 	for index, evaluation := range cases {
 		if err := agent.Reset(ctx); err != nil {
-			return fmt.Errorf("case %d reset: %w", index+1, err)
+			return report, fmt.Errorf("case %d reset: %w", index+1, err)
 		}
 		caseStarted := time.Now()
-		response, err := agent.Complete(ctx, evaluation.input, options.maxTokens)
+		response, err := agent.Complete(ctx, evaluation.input, maxTokens)
 		if err != nil {
-			return fmt.Errorf("case %d complete: %w", index+1, err)
+			return report, fmt.Errorf("case %d complete: %w", index+1, err)
 		}
 		caseDuration := time.Since(caseStarted)
-		result := evaluateResponse(response, evaluation.want)
+		result := evaluateResponse(response, evaluation.want, evaluation.input, system)
 		if result.call {
-			callCount++
+			summary.CallResponses++
+		}
+		if !response.Success {
+			summary.FailedResponses++
 		}
 		if result.name {
-			nameCount++
+			summary.NameMatches++
 		}
 		if result.exact {
-			exactCount++
+			summary.ExactMatches++
+		}
+		if evaluation.critical {
+			summary.CriticalCases++
+			if !result.exact {
+				summary.CriticalFailures++
+			}
 		}
 		if result.confidence != nil {
 			confidenceTotal += *result.confidence
@@ -168,42 +229,25 @@ names or objects with "name" and exact "arguments" fields.`,
 			CallResponse: result.call,
 			NameMatch:    result.name,
 			ExactMatch:   result.exact,
+			Critical:     evaluation.critical,
+			Rejected:     result.rejected,
 			DurationMS:   caseDuration.Milliseconds(),
 			textResult:   result,
 		}
 		report.Cases = append(report.Cases, caseReport)
-		if *outputFormat == evaluationFormatText {
-			writeTextEvaluationCase(a.stdout, caseReport, caseDuration)
+		if onCase != nil {
+			onCase(caseReport, caseDuration)
 		}
 	}
-
-	score := float64(exactCount) / float64(len(cases))
-	passed := *minScore == 0 || score+1e-12 >= *minScore
-	report.Summary = evaluationSummary{
-		Total:         len(cases),
-		CallResponses: callCount,
-		NameMatches:   nameCount,
-		ExactMatches:  exactCount,
-		Score:         score,
-		MinimumScore:  *minScore,
-		Passed:        passed,
-		DurationMS:    time.Since(started).Milliseconds(),
-	}
+	summary.Total = len(cases)
+	summary.Score = float64(summary.ExactMatches) / float64(len(cases))
+	summary.Passed = summary.CriticalFailures == 0
+	summary.DurationMS = time.Since(started).Milliseconds()
 	if confidenceCount != 0 {
 		average := confidenceTotal / float64(confidenceCount)
-		report.Summary.AverageConfidence = &average
+		summary.AverageConfidence = &average
 	}
-	if *outputFormat == evaluationFormatJSON {
-		if err := writeJSON(a.stdout, report, false); err != nil {
-			return err
-		}
-	} else {
-		writeTextEvaluationSummary(a.stdout, report.Summary)
-	}
-	if !passed {
-		return fmt.Errorf("exact-match score %.3f is below --min-score %.3f", score, *minScore)
-	}
-	return nil
+	return report, nil
 }
 
 func reportExpectations(want []evaluationExpectation) []evaluationReportExpectation {
@@ -226,6 +270,8 @@ func writeTextEvaluationCase(output io.Writer, report evaluationCaseReport, dura
 	status := "✗"
 	if report.ExactMatch {
 		status = "✓"
+	} else if report.Critical {
+		status = "✗!"
 	}
 	fmt.Fprintf(
 		output,
@@ -252,6 +298,12 @@ func writeTextEvaluationSummary(output io.Writer, summary evaluationSummary) {
 		summary.Total,
 		summary.Score,
 	)
+	if summary.CriticalCases > 0 {
+		fmt.Fprintf(output, ", critical failures %d/%d", summary.CriticalFailures, summary.CriticalCases)
+	}
+	if summary.FailedResponses > 0 {
+		fmt.Fprintf(output, ", failed responses %d", summary.FailedResponses)
+	}
 	if summary.AverageConfidence != nil {
 		fmt.Fprintf(output, ", confidence %.2f", *summary.AverageConfidence)
 	}
@@ -292,8 +344,14 @@ func parseEvaluationCase(data []byte) (evaluationCase, error) {
 		return evaluationCase{}, err
 	}
 	for field := range fields {
-		if field != "input" && field != "want" {
+		if field != "input" && field != "want" && field != "critical" {
 			return evaluationCase{}, fmt.Errorf("unknown field %q", field)
+		}
+	}
+	var critical bool
+	if criticalJSON, exists := fields["critical"]; exists {
+		if err := json.Unmarshal(criticalJSON, &critical); err != nil {
+			return evaluationCase{}, fmt.Errorf("decode critical: %w", err)
 		}
 	}
 	inputJSON, exists := fields["input"]
@@ -326,7 +384,7 @@ func parseEvaluationCase(data []byte) (evaluationCase, error) {
 		}
 		want = append(want, expectation)
 	}
-	return evaluationCase{input: input, want: want}, nil
+	return evaluationCase{input: input, want: want, critical: critical}, nil
 }
 
 func parseEvaluationExpectation(data []byte) (evaluationExpectation, error) {
@@ -365,51 +423,122 @@ func parseEvaluationExpectation(data []byte) (evaluationExpectation, error) {
 	return expectation, nil
 }
 
-func evaluateResponse(response cactus.Response, want []evaluationExpectation) evaluationResult {
-	actualNames := make([]string, 0, len(response.FunctionCalls))
-	for _, call := range response.FunctionCalls {
-		actualNames = append(actualNames, call.Name)
-	}
+// evaluateResponse scores the calls of a response against the expected calls
+// in any order, whether or not the response reports success. Calls that
+// ValidateResponse rejects, with sources as its sources, count as no call.
+func evaluateResponse(response cactus.Response, want []evaluationExpectation, sources ...string) evaluationResult {
 	result := evaluationResult{
 		call:       response.Success && response.Type == cactus.ResponseCall,
 		actual:     formatEvaluationCalls(response),
 		confidence: response.Confidence,
 	}
-	if !response.Success {
-		result.detail = " (response failed)"
-		return result
-	}
-	if len(actualNames) != len(want) {
-		result.detail = fmt.Sprintf(" (want %s)", formatExpectedCalls(want))
-		return result
-	}
-	for index, expectation := range want {
-		if actualNames[index] != expectation.name {
-			result.detail = fmt.Sprintf(" (want %s)", formatExpectedCalls(want))
-			return result
+	calls := response.FunctionCalls
+	if len(calls) > 0 {
+		if err := cactus.ValidateResponse(response, sources...); err != nil {
+			result.rejected = err.Error()
+			calls = nil
 		}
+	}
+	if !matchCalls(calls, want, false) {
+		result.detail = mismatchDetail(result.rejected, fmt.Sprintf("want %s", formatExpectedCalls(want)))
+		if !response.Success {
+			result.detail += failedDetail(response)
+		}
+		return result
 	}
 	result.name = true
+	if !matchCalls(calls, want, true) {
+		result.detail = mismatchDetail(result.rejected, "argument mismatch")
+		return result
+	}
 	result.exact = true
-	for index, expectation := range want {
-		if expectation.hasArguments && !equalJSON(
-			response.FunctionCalls[index].Arguments,
-			expectation.arguments,
-		) {
-			result.exact = false
-			result.detail = " (argument mismatch)"
-			break
-		}
+	if result.rejected != "" {
+		result.detail = " (rejected: " + result.rejected + ")"
+	}
+	if !response.Success {
+		result.detail += failedDetail(response)
 	}
 	return result
 }
 
+func failedDetail(response cactus.Response) string {
+	if response.ErrorCode != nil {
+		return " (response failed: " + *response.ErrorCode + ")"
+	}
+	return " (response failed)"
+}
+
+func mismatchDetail(rejected, detail string) string {
+	if rejected != "" {
+		return fmt.Sprintf(" (rejected: %s; %s)", rejected, detail)
+	}
+	return " (" + detail + ")"
+}
+
+// matchCalls pairs every expectation with its own call, in any order. With
+// arguments set, an expectation that states arguments needs equal ones.
+// Expectations with arguments are paired first, so a name-only expectation
+// cannot take the call another one needs.
+func matchCalls(calls []cactus.FunctionCall, want []evaluationExpectation, arguments bool) bool {
+	if len(calls) != len(want) {
+		return false
+	}
+	used := make([]bool, len(calls))
+	pair := func(expectation evaluationExpectation, compare bool) bool {
+		for index, call := range calls {
+			if used[index] || call.Name != expectation.name {
+				continue
+			}
+			if compare && !equalJSON(call.Arguments, expectation.arguments) {
+				continue
+			}
+			used[index] = true
+			return true
+		}
+		return false
+	}
+	for _, stated := range []bool{true, false} {
+		for _, expectation := range want {
+			if (arguments && expectation.hasArguments) != stated {
+				continue
+			}
+			if !pair(expectation, stated) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// equalJSON compares JSON values with strings compared without case, since
+// the model may capitalize text it copies.
 func equalJSON(left, right json.RawMessage) bool {
 	var leftValue, rightValue any
 	if json.Unmarshal(left, &leftValue) != nil || json.Unmarshal(right, &rightValue) != nil {
 		return false
 	}
-	return reflect.DeepEqual(leftValue, rightValue)
+	return reflect.DeepEqual(foldStrings(leftValue), foldStrings(rightValue))
+}
+
+func foldStrings(value any) any {
+	switch value := value.(type) {
+	case string:
+		return strings.ToLower(value)
+	case map[string]any:
+		folded := make(map[string]any, len(value))
+		for key, item := range value {
+			folded[key] = foldStrings(item)
+		}
+		return folded
+	case []any:
+		folded := make([]any, len(value))
+		for index, item := range value {
+			folded[index] = foldStrings(item)
+		}
+		return folded
+	default:
+		return value
+	}
 }
 
 func formatEvaluationCalls(response cactus.Response) string {
@@ -418,7 +547,7 @@ func formatEvaluationCalls(response cactus.Response) string {
 		for _, call := range response.FunctionCalls {
 			names = append(names, call.Name)
 		}
-		return strings.Join(names, ">")
+		return strings.Join(names, ", ")
 	}
 	if response.Type == cactus.ResponseRefuse {
 		return "(refusal)"
@@ -437,7 +566,7 @@ func formatExpectedCalls(want []evaluationExpectation) string {
 	for _, expectation := range want {
 		names = append(names, expectation.name)
 	}
-	return strings.Join(names, ">")
+	return strings.Join(names, ", ")
 }
 
 func displayInput(input string) string {
