@@ -255,9 +255,10 @@ func nativeOutput(api *nativeAPI, operation string, code int32, buffer []byte) (
 
 // Run completes a query, rejects engine validation warnings, and executes
 // accepted tool calls until the model returns a final response. It uses
-// ValidateResponse to reject an entire flagged turn before executing any tool
-// calls, without retrying, and returns the raw flagged response together with
-// results from earlier completed rounds.
+// ValidateResponse, with the query and system facts as sources, to reject an
+// entire flagged turn before executing any tool calls, without retrying, and
+// returns the raw flagged response together with results from earlier
+// completed rounds.
 func (a *Agent) Run(ctx context.Context, query string, maxSteps, maxNewTokens int) (Response, error) {
 	if maxSteps == 0 {
 		maxSteps = DefaultMaxSteps
@@ -270,8 +271,9 @@ func (a *Agent) Run(ctx context.Context, query string, maxSteps, maxNewTokens in
 	if err != nil {
 		return Response{}, err
 	}
+	sources := []string{query, string(bytes.TrimSuffix(a.system, []byte{0}))}
 	executed := make([]any, 0)
-	if err := ValidateResponse(response); err != nil {
+	if err := ValidateResponse(response, sources...); err != nil {
 		response.Results = executed
 		return response, fmt.Errorf("cactus: run: %w", err)
 	}
@@ -294,7 +296,7 @@ func (a *Agent) Run(ctx context.Context, query string, maxSteps, maxNewTokens in
 		if err != nil {
 			return Response{}, err
 		}
-		if err := ValidateResponse(response); err != nil {
+		if err := ValidateResponse(response, sources...); err != nil {
 			response.Results = executed
 			return response, fmt.Errorf("cactus: run: %w", err)
 		}

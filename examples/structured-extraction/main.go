@@ -26,15 +26,12 @@ func main() {
 		log.Fatal(err)
 	}
 
-	response, err := agent.Complete(
-		ctx,
-		"Invoice from Acme Corp, total 1200, due 2026-09-01.",
-		cactus.DefaultMaxNewTokens,
-	)
+	text := "Invoice from Acme Corp, total 1200, due 2026-09-01."
+	response, err := agent.Complete(ctx, text, cactus.DefaultMaxNewTokens)
 	if err != nil {
 		log.Fatal(err)
 	}
-	if err := cactus.ValidateResponse(response); err != nil {
+	if err := cactus.ValidateResponse(response, text); err != nil {
 		log.Fatal(err)
 	}
 	extracted, err := cactus.Extract[invoice](response)

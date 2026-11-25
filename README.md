@@ -106,6 +106,20 @@ between its tool rounds. Keep the default stateful mode for manual tool loops
 that feed results back through `Complete`, and call `Reset` between independent
 queries.
 
+## Validation
+
+`Run` rejects a turn the engine flags as negated or ungrounded before executing
+any of its calls. The engine can flag a number the user did write, such as 25.5
+for "$25.50", so a flagged number is accepted when it appears in the query or
+the system facts, other than in the date fact. For manual loops, pass the input
+text to `ValidateResponse` as a source:
+
+```go
+if err := cactus.ValidateResponse(response, query); err != nil {
+	log.Fatal(err)
+}
+```
+
 ## Closing
 
 `Close` releases an agent's response buffer and native binding; later calls

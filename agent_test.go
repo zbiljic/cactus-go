@@ -578,6 +578,8 @@ func TestRunValidation(t *testing.T) {
 	validCall := call("tool", `{}`, "")
 	tests := []struct {
 		name           string
+		query          string
+		system         string
 		responses      [][]byte
 		maxSteps       int
 		wantError      string
@@ -605,7 +607,60 @@ func TestRunValidation(t *testing.T) {
 			wantValidation: &Validation{Negation: true},
 		},
 		{
-			name: "ungrounded numeric formatted source",
+			name: "flagged number written in query",
+			responses: [][]byte{
+				call("tool", `{"total":1200}`, `,"validation":{"ungrounded":["tool.total"]}`),
+				[]byte(`{"type":"respond"}`),
+			},
+			wantHandlers:  1,
+			wantCompletes: 2,
+			wantResults:   1,
+		},
+		{
+			name:   "flagged number written in system facts",
+			query:  "set it",
+			system: "budget: 75",
+			responses: [][]byte{
+				call("tool", `{"total":75}`, `,"validation":{"ungrounded":["tool.total"]}`),
+				[]byte(`{"type":"respond"}`),
+			},
+			wantHandlers:  1,
+			wantCompletes: 2,
+			wantResults:   1,
+		},
+		{
+			name: "misread thousands separator",
+			responses: [][]byte{
+				call("tool", `{"total":1.2}`, `,"validation":{"ungrounded":["tool.total"]}`),
+			},
+			wantError:      "tool.total",
+			wantCompletes:  1,
+			wantValidation: &Validation{Ungrounded: []string{"tool.total"}},
+		},
+		{
+			name:  "flagged number only in reasoning",
+			query: "the order total",
+			responses: [][]byte{
+				call("tool", `{"total":1200}`,
+					`,"reasoning":"order ID 1200","validation":{"ungrounded":["tool.total"]}`),
+			},
+			wantError:      "tool.total",
+			wantCompletes:  1,
+			wantValidation: &Validation{Ungrounded: []string{"tool.total"}},
+		},
+		{
+			name:   "flagged number only in date fact",
+			query:  "book it",
+			system: "date: 2026-11-25 Wed 14:30",
+			responses: [][]byte{
+				call("tool", `{"day":25}`, `,"validation":{"ungrounded":["tool.day"]}`),
+			},
+			wantError:      "tool.day",
+			wantCompletes:  1,
+			wantValidation: &Validation{Ungrounded: []string{"tool.day"}},
+		},
+		{
+			name: "flagged number of another tool",
 			responses: [][]byte{
 				call("tool", `{"total":1200}`, `,"validation":{"ungrounded":["invoice.total"]}`),
 			},
@@ -614,14 +669,13 @@ func TestRunValidation(t *testing.T) {
 			wantValidation: &Validation{Ungrounded: []string{"invoice.total"}},
 		},
 		{
-			name: "unrelated matching number in reasoning",
+			name: "flagged string",
 			responses: [][]byte{
-				call("tool", `{"total":1200}`,
-					`,"reasoning":"order ID 1200","validation":{"ungrounded":["invoice.total"]}`),
+				call("tool", `{"total":"1200"}`, `,"validation":{"ungrounded":["tool.total"]}`),
 			},
-			wantError:      "invoice.total",
+			wantError:      "tool.total",
 			wantCompletes:  1,
-			wantValidation: &Validation{Ungrounded: []string{"invoice.total"}},
+			wantValidation: &Validation{Ungrounded: []string{"tool.total"}},
 		},
 		{
 			name: "unknown field on empty calls",
@@ -640,6 +694,15 @@ func TestRunValidation(t *testing.T) {
 			wantError:      "negation",
 			wantCompletes:  1,
 			wantValidation: &Validation{Negation: true},
+		},
+		{
+			name: "one of two calls unsourced",
+			responses: [][]byte{
+				[]byte(`{"type":"call","function_calls":[{"name":"tool","arguments":{"total":1200}},{"name":"tool","arguments":{"total":7}}],"validation":{"ungrounded":["tool.total"]}}`),
+			},
+			wantError:      "tool.total",
+			wantCompletes:  1,
+			wantValidation: &Validation{Ungrounded: []string{"tool.total"}},
 		},
 		{
 			name: "two calls whole turn rejected",
@@ -666,6 +729,18 @@ func TestRunValidation(t *testing.T) {
 			wantValidation: &Validation{Negation: true},
 		},
 		{
+			name: "flagged number written in query in later round",
+			responses: [][]byte{
+				validCall,
+				call("tool", `{"total":1200}`, `,"validation":{"ungrounded":["tool.total"]}`),
+				[]byte(`{"type":"respond"}`),
+			},
+			maxSteps:      2,
+			wantHandlers:  2,
+			wantCompletes: 3,
+			wantResults:   2,
+		},
+		{
 			name: "final completion after max steps rejected",
 			responses: [][]byte{
 				validCall,
@@ -685,6 +760,7 @@ func TestRunValidation(t *testing.T) {
 			fake := &fakeNative{responses: append([][]byte(nil), test.responses...)}
 			handlers := 0
 			agent, _ := newTestAgent(t, fake, Config{
+				System: test.system,
 				Tools: []Tool{{
 					Schema: ToolSchema{Name: "tool"},
 					Handler: func(context.Context, json.RawMessage) (any, error) {
@@ -693,9 +769,11 @@ func TestRunValidation(t *testing.T) {
 					},
 				}},
 			})
-			response, err := agent.Run(
-				context.Background(), "$1,200.00 and order ID 1200", test.maxSteps, 1,
-			)
+			query := test.query
+			if query == "" {
+				query = "$1,200.00 and order ID 1200"
+			}
+			response, err := agent.Run(context.Background(), query, test.maxSteps, 1)
 			if (test.wantError == "") != (err == nil) || err != nil &&
 				(!strings.Contains(err.Error(), "cactus: run:") ||
 					!strings.Contains(err.Error(), test.wantError)) {

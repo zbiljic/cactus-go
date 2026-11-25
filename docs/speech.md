@@ -72,9 +72,10 @@ response, err := speech.Complete(ctx, agent, pcm, cactus.AudioOptions{},
 
 The response includes optional `AudioText`, `AudioLanguage`, `AudioWords`,
 `AudioTTFTMS` and `AudioDecodeTPS` fields. This is a raw completion: validate it
-with `ValidateResponse` before acting on calls, and never execute suppressed
-calls automatically. Stateless agents reset once before the audio request;
-stateful agents retain context for manual tool-result continuations.
+with `ValidateResponse`, passing `AudioText` as a source, before acting on
+calls, and never execute suppressed calls automatically. Stateless agents reset
+once before the audio request; stateful agents retain context for manual
+tool-result continuations.
 
 ## Speech features
 

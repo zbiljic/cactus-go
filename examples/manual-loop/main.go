@@ -24,11 +24,12 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	response, err := agent.Complete(ctx, "Find Ada Lovelace in my contacts.", cactus.DefaultMaxNewTokens)
+	query := "Find Ada Lovelace in my contacts."
+	response, err := agent.Complete(ctx, query, cactus.DefaultMaxNewTokens)
 	if err != nil {
 		log.Fatal(err)
 	}
-	if err := cactus.ValidateResponse(response); err != nil {
+	if err := cactus.ValidateResponse(response, query); err != nil {
 		log.Fatal(err)
 	}
 	if response.Type != cactus.ResponseCall || len(response.FunctionCalls) == 0 {
@@ -53,7 +54,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	if err := cactus.ValidateResponse(response); err != nil {
+	if err := cactus.ValidateResponse(response, query); err != nil {
 		log.Fatal(err)
 	}
 	fmt.Printf("final response: %s\n", response.Type)
