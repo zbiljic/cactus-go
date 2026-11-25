@@ -74,7 +74,7 @@ func main() {
 ```
 
 By default, `cactus.New` downloads and caches the pinned
-[Cactus engine](https://huggingface.co/Cactus-Compute/cactus) (4.1.1) and the
+[Cactus engine](https://huggingface.co/Cactus-Compute/cactus) (4.1.4) and the
 `needle3.cact` base weights (~35 MB) from the
 [Needle 3 model repository](https://huggingface.co/Cactus-Compute/needle3).
 Subsequent runs use the cached files. No Python installation is required.

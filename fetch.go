@@ -21,7 +21,7 @@ const (
 	// EngineVersion is the Cactus engine version, which runs Needle 3 (the
 	// default generation), Whistle and Mirage. Needle 2 keeps its own engine; see
 	// EngineVersionFor.
-	EngineVersion = "4.1.1"
+	EngineVersion = "4.1.4"
 
 	maxArtifactSize = 64 << 20
 )
@@ -107,12 +107,12 @@ var artifactsV2 = map[Platform]engineArtifact{
 }
 
 // cactusWheel pins a runtime wheel from the Cactus engine release. Sizes and
-// checksums come from releases/4.1.1/manifest.json (sha256
-// 27168631232dbff52a205b54bbfad54fd9b81f06fa368657d07449e2221f5e25).
+// checksums come from releases/4.1.4/manifest.json (sha256
+// ab948753f08e54d2b24dd04830dcb984885524ab3bd1e9da3bf207276ab62eb6).
 func cactusWheel(tag, library string, size int64, checksum string) engineArtifact {
 	return engineArtifact{
 		repo:     "Cactus-Compute/cactus",
-		revision: "d2c5cd70432ed78345f3ba6b620bff2feeec6c86",
+		revision: "f4ab2741203a282c6e7b89983de2b5e5b2e805a8",
 		path: "releases/" + EngineVersion + "/python/cactus_runtime-" + EngineVersion +
 			"-py3-none-" + tag + ".whl",
 		size:        size,
@@ -123,22 +123,22 @@ func cactusWheel(tag, library string, size int64, checksum string) engineArtifac
 }
 
 var artifacts = map[Platform]engineArtifact{
-	PlatformDarwinARM64: cactusWheel("macosx_11_0_arm64", "libcactus.dylib", 722805,
-		"16ce3c02e87db1ef3ab3974d5d31ff0680bb1004cd49b3606d5cfe4db8b9b536"),
-	PlatformDarwinAMD64: cactusWheel("macosx_11_0_x86_64", "libcactus.dylib", 781063,
-		"a1c382375b6df5f1f57f075e48c5fcd9da84b666a2c97bd4b49c10543b8b905f"),
-	PlatformLinuxARM64: cactusWheel("manylinux2014_aarch64", "libcactus.so", 822733,
-		"5b67ab4a5b44ee846e7662940e2dd854006ec8766c63c81405338428576e914d"),
-	PlatformLinuxAMD64: cactusWheel("manylinux2014_x86_64", "libcactus.so", 856749,
-		"b48fe924d108f84bbe265539920b1b2b98daf936e22af461408f1856a41546d6"),
-	PlatformLinuxARM64Musl: cactusWheel("musllinux_1_2_aarch64", "libcactus.so", 822507,
-		"d2cba6fba4cca494298c75259a881da62bcac543b0da8fddf92678566d811a2e"),
-	PlatformLinuxAMD64Musl: cactusWheel("musllinux_1_2_x86_64", "libcactus.so", 857831,
-		"ae4f0f9d7245f37da155816e8ef62725dea905dc3c47664416105fba7dd3698f"),
-	PlatformWindowsAMD64: cactusWheel("win_amd64", "libcactus.dll", 865905,
-		"876eea21e31bcad795b9e84cfaadf65e01a32a64ef113c8b77616d33ab8e3169"),
-	PlatformWindowsARM64: cactusWheel("win_arm64", "libcactus.dll", 785327,
-		"a5cebd1cac7cb5e54f0405a2c6e5f492e5c103fd2cc9895a766583575c3c70ce"),
+	PlatformDarwinARM64: cactusWheel("macosx_11_0_arm64", "libcactus.dylib", 745539,
+		"45eaae74b37291425bc8bedfc3fa0ff6984cf8ea1997d2ea1711387974d25e43"),
+	PlatformDarwinAMD64: cactusWheel("macosx_11_0_x86_64", "libcactus.dylib", 808075,
+		"bb04050273486582ef8484bd5c95cba3a43cb2db4510970b1f97cc6432f464cd"),
+	PlatformLinuxARM64: cactusWheel("manylinux2014_aarch64", "libcactus.so", 847738,
+		"45b703ee71fd979d3155f945a733c1dd1f18637035314e9c96fdfd60ae96b787"),
+	PlatformLinuxAMD64: cactusWheel("manylinux2014_x86_64", "libcactus.so", 881626,
+		"314cd027e95cae1cb8537c478ca6cddaec3fd02165f80d960f1934399871fc33"),
+	PlatformLinuxARM64Musl: cactusWheel("musllinux_1_2_aarch64", "libcactus.so", 847733,
+		"f54163ee24baf7a5fef6e864bd440d3e6e87363932ed30ac56f676507e57d5bf"),
+	PlatformLinuxAMD64Musl: cactusWheel("musllinux_1_2_x86_64", "libcactus.so", 882518,
+		"78fd9d4ec5d1c091fd354afc6a0c4714b5fa1a3a2dda95019adc421374495e40"),
+	PlatformWindowsAMD64: cactusWheel("win_amd64", "libcactus.dll", 891053,
+		"76f21737d93a5246afe2bfee65a5a338df35217cb6258c7aa9cc747e6ea2bb73"),
+	PlatformWindowsARM64: cactusWheel("win_arm64", "libcactus.dll", 809059,
+		"f8dae7aacb3912623814db25c2d336b5b2a1b00fb1eb96d630ef53899b156e07"),
 }
 
 var baseWeights = engineArtifact{
@@ -152,7 +152,7 @@ var baseWeights = engineArtifact{
 
 var speechWeights = engineArtifact{
 	repo:        "Cactus-Compute/whistle",
-	revision:    "741118687e1f008f06d1351a402a731274789790",
+	revision:    "88cb00eeb8928ddbcd410b491584f938ba030b07",
 	path:        "whistle.cact",
 	size:        16919407,
 	checksum:    "b6e02f048568ac5d01a2042556c658061e699acbc0aa2a1439f52f3d461dffeb",
