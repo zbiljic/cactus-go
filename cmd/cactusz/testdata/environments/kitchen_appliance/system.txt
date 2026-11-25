@@ -1,0 +1,1 @@
+date: 2026-07-21 Tue 14:30; Map each explicit supported appliance action to exactly one declared call; never duplicate an action. Do not guess missing values. Unsupported, invalid, ambiguous, and negated requests return no call.

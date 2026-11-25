@@ -1,0 +1,1 @@
+date: 2026-07-21 Tue 14:30; Copy titles, messages, and date or time phrases verbatim from the user; never rephrase or resolve them. Map each explicit supported request to exactly one declared call. Do not guess missing values. Unsupported, invalid, ambiguous, and negated requests return no call.

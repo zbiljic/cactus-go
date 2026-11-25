@@ -1,0 +1,32 @@
+{"input": "preheat the oven to 180 degrees", "want": [{"name": "set_oven", "arguments": {"temperature": 180}}]}
+{"input": "set the oven to 220 degrees", "want": [{"name": "set_oven", "arguments": {"temperature": 220}}]}
+{"input": "bake at 200 degrees", "want": [{"name": "set_oven", "arguments": {"temperature": 200}}]}
+{"input": "bring the oven up to 160 degrees", "want": [{"name": "set_oven", "arguments": {"temperature": 160}}]}
+{"input": "brew a fresh pot of coffee", "want": [{"name": "control_coffee_maker", "arguments": {"action": "brew"}}]}
+{"input": "start brewing another batch of coffee", "want": [{"name": "control_coffee_maker", "arguments": {"action": "brew"}}]}
+{"input": "stop the coffee maker", "want": [{"name": "control_coffee_maker", "arguments": {"action": "stop"}}]}
+{"input": "keep my coffee warm", "want": [{"name": "control_coffee_maker", "arguments": {"action": "warm"}}]}
+{"input": "run the dishwasher on the eco cycle", "want": [{"name": "start_dishwasher", "arguments": {"cycle": "eco"}}]}
+{"input": "start a heavy dishwasher cycle", "want": [{"name": "start_dishwasher", "arguments": {"cycle": "heavy"}}]}
+{"input": "run a quick cycle on the dishwasher", "want": [{"name": "start_dishwasher", "arguments": {"cycle": "quick"}}]}
+{"input": "set a pasta timer for 10 minutes", "want": [{"name": "set_cooking_timer", "arguments": {"label": "pasta", "minutes": 10}}]}
+{"input": "start a 90 minute timer for the brisket", "want": [{"name": "set_cooking_timer", "arguments": {"label": "brisket", "minutes": 90}}]}
+{"input": "give me a 5 minute timer for the eggs", "want": [{"name": "set_cooking_timer", "arguments": {"label": "eggs", "minutes": 5}}]}
+{"input": "the cookies need a 12 minute timer", "want": [{"name": "set_cooking_timer", "arguments": {"label": "cookies", "minutes": 12}}]}
+{"input": "check the oven", "want": [{"name": "get_appliance_status", "arguments": {"appliance": "oven"}}]}
+{"input": "check on the dishwasher", "want": [{"name": "get_appliance_status", "arguments": {"appliance": "dishwasher"}}]}
+{"input": "check the coffee maker for me", "want": [{"name": "get_appliance_status", "arguments": {"appliance": "coffee_maker"}}]}
+{"input": "heat up the oven for the garlic bread", "want": [], "critical": true}
+{"input": "set a cooking timer for the rice", "want": [], "critical": true}
+{"input": "start a timer for 25 minutes", "want": [], "critical": true}
+{"input": "change the coffee maker setting", "want": [], "critical": true}
+{"input": "defrost some chicken in the microwave", "want": []}
+{"input": "boil the kettle for tea", "want": []}
+{"input": "turn the fridge down to 3 degrees", "want": []}
+{"input": "don't preheat the oven to 220 degrees tonight", "want": [], "critical": true}
+{"input": "do not run the dishwasher on heavy today", "want": [], "critical": true}
+{"input": "never brew coffee this late at night", "want": [], "critical": true}
+{"input": "get the oven up to 300 degrees", "want": [], "critical": true}
+{"input": "set a stew timer for 500 minutes", "want": [], "critical": true}
+{"input": "set the oven to 180 degrees and start a pizza timer for 15 minutes", "want": [{"name": "set_oven", "arguments": {"temperature": 180}}, {"name": "set_cooking_timer", "arguments": {"label": "pizza", "minutes": 15}}]}
+{"input": "brew coffee and run the dishwasher on quick", "want": [{"name": "control_coffee_maker", "arguments": {"action": "brew"}}, {"name": "start_dishwasher", "arguments": {"cycle": "quick"}}]}

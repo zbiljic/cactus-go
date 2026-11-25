@@ -1,0 +1,32 @@
+{"input": "reply to Maya saying be there in 10 minutes", "want": [{"name": "reply_to_notification", "arguments": {"notification_match": "Maya", "text": "be there in 10 minutes"}}]}
+{"input": "reply to Dr. Patel with See you Thursday", "want": [{"name": "reply_to_notification", "arguments": {"notification_match": "Dr. Patel", "text": "See you Thursday"}}]}
+{"input": "answer the Cactus Team message saying the build is green", "want": [{"name": "reply_to_notification", "arguments": {"notification_match": "Cactus Team", "text": "the build is green"}}]}
+{"input": "send Leo a reply that says lunch works for me", "want": [{"name": "reply_to_notification", "arguments": {"notification_match": "Leo", "text": "lunch works for me"}}]}
+{"input": "dismiss the notification from Leo", "want": [{"name": "dismiss_notification", "arguments": {"notification_match": "Leo"}}]}
+{"input": "swipe away the alert from Maya", "want": [{"name": "dismiss_notification", "arguments": {"notification_match": "Maya"}}]}
+{"input": "clear the Dr. Patel notification", "want": [{"name": "dismiss_notification", "arguments": {"notification_match": "Dr. Patel"}}]}
+{"input": "get rid of the Cactus Team notification", "want": [{"name": "dismiss_notification", "arguments": {"notification_match": "Cactus Team"}}]}
+{"input": "start a running workout", "want": [{"name": "start_workout", "arguments": {"workout_type": "running"}}]}
+{"input": "begin a swimming session on my watch", "want": [{"name": "start_workout", "arguments": {"workout_type": "swimming"}}]}
+{"input": "kick off some strength training", "want": [{"name": "start_workout", "arguments": {"workout_type": "strength"}}]}
+{"input": "track a cycling workout", "want": [{"name": "start_workout", "arguments": {"workout_type": "cycling"}}]}
+{"input": "go ahead and start a walking workout", "want": [{"name": "start_workout", "arguments": {"workout_type": "walking"}}]}
+{"input": "end my workout", "want": [{"name": "end_workout", "arguments": {}}]}
+{"input": "finish the current workout session", "want": [{"name": "end_workout", "arguments": {}}]}
+{"input": "wrap up my workout now", "want": [{"name": "end_workout", "arguments": {}}]}
+{"input": "find my phone", "want": [{"name": "find_my_phone", "arguments": {}}]}
+{"input": "make my phone ring so I can locate it", "want": [{"name": "find_my_phone", "arguments": {}}]}
+{"input": "send a reply to Maya", "want": [], "critical": true}
+{"input": "dismiss the latest notification", "want": [], "critical": true}
+{"input": "start a workout", "want": [], "critical": true}
+{"input": "reply saying I am stuck in a meeting", "want": [], "critical": true}
+{"input": "check my heart rate on the watch", "want": []}
+{"input": "call Maya from my watch", "want": []}
+{"input": "show my step count for today", "want": []}
+{"input": "don't reply to the message from Leo", "want": [], "critical": true}
+{"input": "do not start a running workout yet", "want": [], "critical": true}
+{"input": "never dismiss notifications from Dr. Patel", "want": [], "critical": true}
+{"input": "reply to Priya saying happy birthday", "want": [], "critical": true}
+{"input": "start a pilates workout", "want": [], "critical": true}
+{"input": "dismiss the notification from Leo and start a strength workout", "want": [{"name": "dismiss_notification", "arguments": {"notification_match": "Leo"}}, {"name": "start_workout", "arguments": {"workout_type": "strength"}}]}
+{"input": "find my phone and reply to Maya saying almost home", "want": [{"name": "reply_to_notification", "arguments": {"notification_match": "Maya", "text": "almost home"}}, {"name": "find_my_phone", "arguments": {}}]}

@@ -1,0 +1,8 @@
+{
+  "data_capture": [19, 25, 31],
+  "kitchen_appliance": [5, 22],
+  "media_player": [13, 22, 23, 24],
+  "productivity": [30],
+  "smart_home": [8, 23, 25, 29],
+  "wearable": [21, 23, 30]
+}

@@ -1,0 +1,32 @@
+{"input": "start a timer for 25 minutes", "want": [{"name": "set_timer", "arguments": {"time_human": "25 minutes"}}]}
+{"input": "run a timer for 90 seconds", "want": [{"name": "set_timer", "arguments": {"time_human": "90 seconds"}}]}
+{"input": "set a timer that goes off at 9:15pm", "want": [{"name": "set_timer", "arguments": {"time_human": "9:15pm"}}]}
+{"input": "remind me at 6pm to water the plants", "want": [{"name": "create_reminder", "arguments": {"message": "water the plants", "date_time_human": "6pm"}}]}
+{"input": "set a reminder for Sunday morning to call Grandma", "want": [{"name": "create_reminder", "arguments": {"message": "call Grandma", "date_time_human": "Sunday morning"}}]}
+{"input": "remind me tomorrow at noon to renew the car insurance", "want": [{"name": "create_reminder", "arguments": {"message": "renew the car insurance", "date_time_human": "tomorrow at noon"}}]}
+{"input": "could you remind me at 8:15am to take my vitamins", "want": [{"name": "create_reminder", "arguments": {"message": "take my vitamins", "date_time_human": "8:15am"}}]}
+{"input": "add dentist appointment to my calendar tomorrow at 3pm", "want": [{"name": "create_calendar_event", "arguments": {"title": "dentist appointment", "start_time_human": "tomorrow at 3pm"}}]}
+{"input": "schedule team standup for Monday at 9am", "want": [{"name": "create_calendar_event", "arguments": {"title": "team standup", "start_time_human": "Monday at 9am"}}]}
+{"input": "put book club on my calendar Wednesday at 7pm at Riverside Library", "want": [{"name": "create_calendar_event", "arguments": {"title": "book club", "start_time_human": "Wednesday at 7pm", "location": "Riverside Library"}}]}
+{"input": "schedule lunch with Sam for Friday at 1pm at Cafe Roma", "want": [{"name": "create_calendar_event", "arguments": {"title": "lunch with Sam", "start_time_human": "Friday at 1pm", "location": "Cafe Roma"}}]}
+{"input": "add renew my passport to my to-do list", "want": [{"name": "add_task", "arguments": {"title": "renew my passport"}}]}
+{"input": "add descale the kettle to my tasks", "want": [{"name": "add_task", "arguments": {"title": "descale the kettle"}}]}
+{"input": "add file the insurance claim as a high priority task", "want": [{"name": "add_task", "arguments": {"title": "file the insurance claim", "priority": "high"}}]}
+{"input": "add a low priority task to organize the garage", "want": [{"name": "add_task", "arguments": {"title": "organize the garage", "priority": "low"}}]}
+{"input": "make a note that sunflower42 is the wifi password", "want": [{"name": "create_note", "arguments": {"text": "sunflower42 is the wifi password"}}]}
+{"input": "save a note titled Packing List saying bring the hiking boots", "want": [{"name": "create_note", "arguments": {"text": "bring the hiking boots", "title": "Packing List"}}]}
+{"input": "write a note titled Garden that says plant the tulip bulbs in October", "want": [{"name": "create_note", "arguments": {"text": "plant the tulip bulbs in October", "title": "Garden"}}]}
+{"input": "remind me to take out the recycling", "want": [], "critical": true}
+{"input": "set a timer for the pasta", "want": [], "critical": true}
+{"input": "put dinner with Alex on my calendar", "want": [], "critical": true}
+{"input": "set a reminder about picking up the dry cleaning", "want": [], "critical": true}
+{"input": "email the shopping list to my roommate", "want": []}
+{"input": "check my calendar for this weekend", "want": []}
+{"input": "delete the reminder about the oil change", "want": []}
+{"input": "don't set a timer for 20 minutes", "want": [], "critical": true}
+{"input": "do not put yoga class on my calendar for Saturday at 8am", "want": [], "critical": true}
+{"input": "never remind me about the water bill again", "want": [], "critical": true}
+{"input": "set a timer for negative 5 minutes", "want": [], "critical": true}
+{"input": "remind me yesterday at 4pm to submit the timesheet", "want": [], "critical": true}
+{"input": "set a timer for 10 minutes and remind me at 5pm to hydrate", "want": [{"name": "set_timer", "arguments": {"time_human": "10 minutes"}}, {"name": "create_reminder", "arguments": {"message": "hydrate", "date_time_human": "5pm"}}]}
+{"input": "add buy candles to my task list and note that rent is due Friday", "want": [{"name": "add_task", "arguments": {"title": "buy candles"}}, {"name": "create_note", "arguments": {"text": "rent is due Friday"}}]}

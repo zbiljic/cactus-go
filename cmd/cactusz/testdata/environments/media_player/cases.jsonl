@@ -1,0 +1,32 @@
+{"input": "play Purple Rain by Prince", "want": [{"name": "play_music", "arguments": {"query": "Purple Rain by Prince"}}]}
+{"input": "put on some smooth jazz", "want": [{"name": "play_music", "arguments": {"query": "smooth jazz"}}]}
+{"input": "queue up Blinding Lights by The Weeknd", "want": [{"name": "play_music", "arguments": {"query": "Blinding Lights by The Weeknd"}}]}
+{"input": "play some lofi beats", "want": [{"name": "play_music", "arguments": {"query": "lofi beats"}}]}
+{"input": "put on Hotel California by the Eagles", "want": [{"name": "play_music", "arguments": {"query": "Hotel California by the Eagles"}}]}
+{"input": "play Bohemian Rhapsody by Queen", "want": [{"name": "play_music", "arguments": {"query": "Bohemian Rhapsody by Queen"}}]}
+{"input": "set the volume to 40", "want": [{"name": "set_volume", "arguments": {"level": 40}}]}
+{"input": "turn the volume up to 85", "want": [{"name": "set_volume", "arguments": {"level": 85}}]}
+{"input": "lower the volume to 15", "want": [{"name": "set_volume", "arguments": {"level": 15}}]}
+{"input": "set the speaker volume to 60", "want": [{"name": "set_volume", "arguments": {"level": 60}}]}
+{"input": "crank the volume up to 95", "want": [{"name": "set_volume", "arguments": {"level": 95}}]}
+{"input": "pause the music", "want": [{"name": "pause_media", "arguments": {}}]}
+{"input": "hit pause on the song", "want": [{"name": "pause_media", "arguments": {}}]}
+{"input": "pause playback while I take this call", "want": [{"name": "pause_media", "arguments": {}}]}
+{"input": "resume the music", "want": [{"name": "resume_media", "arguments": {}}]}
+{"input": "resume playback where it left off", "want": [{"name": "resume_media", "arguments": {}}]}
+{"input": "skip this song", "want": [{"name": "skip_track", "arguments": {}}]}
+{"input": "skip to the next track", "want": [{"name": "skip_track", "arguments": {}}]}
+{"input": "turn up the volume a little", "want": [], "critical": true}
+{"input": "play something for me", "want": [], "critical": true}
+{"input": "turn the music down a bit", "want": [], "critical": true}
+{"input": "play whatever you think I'd like", "want": [], "critical": true}
+{"input": "put on the podcast Hard Fork", "want": []}
+{"input": "tune into the radio station Jazz FM", "want": []}
+{"input": "add this song to my favorites playlist", "want": []}
+{"input": "don't pause the song, I love this part", "want": [], "critical": true}
+{"input": "do not turn the volume up to 90", "want": [], "critical": true}
+{"input": "never play Baby Shark on this speaker again", "want": [], "critical": true}
+{"input": "set the volume to 140", "want": [], "critical": true}
+{"input": "turn the volume up to 500", "want": [], "critical": true}
+{"input": "set the volume to 55 and play Clair de Lune by Debussy", "want": [{"name": "set_volume", "arguments": {"level": 55}}, {"name": "play_music", "arguments": {"query": "Clair de Lune by Debussy"}}]}
+{"input": "pause the music and turn the volume down to 20", "want": [{"name": "pause_media", "arguments": {}}, {"name": "set_volume", "arguments": {"level": 20}}]}

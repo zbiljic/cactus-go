@@ -1,0 +1,32 @@
+{"input": "turn on the kitchen lights", "want": [{"name": "control_lights", "arguments": {"room": "kitchen", "action": "on"}}]}
+{"input": "switch off the lights in the bedroom", "want": [{"name": "control_lights", "arguments": {"room": "bedroom", "action": "off"}}]}
+{"input": "dim the living room lights to 35 percent", "want": [{"name": "control_lights", "arguments": {"room": "living_room", "action": "dim", "brightness_percent": 35}}]}
+{"input": "turn on the study lights in warm white", "want": [{"name": "control_lights", "arguments": {"room": "study", "action": "on", "color": "warm white"}}]}
+{"input": "put the bedroom lights on in blue", "want": [{"name": "control_lights", "arguments": {"room": "bedroom", "action": "on", "color": "blue"}}]}
+{"input": "set the thermostat to 22 degrees", "want": [{"name": "set_thermostat", "arguments": {"temperature": 22}}]}
+{"input": "warm the house to 24 degrees", "want": [{"name": "set_thermostat", "arguments": {"temperature": 24}}]}
+{"input": "cool the whole home down to 19 degrees", "want": [{"name": "set_thermostat", "arguments": {"temperature": 19}}]}
+{"input": "turn on the bedroom fan", "want": [{"name": "control_fan", "arguments": {"room": "bedroom", "action": "on"}}]}
+{"input": "switch the study fan off", "want": [{"name": "control_fan", "arguments": {"room": "study", "action": "off"}}]}
+{"input": "turn on the living room fan at high speed", "want": [{"name": "control_fan", "arguments": {"room": "living_room", "action": "on", "speed": "high"}}]}
+{"input": "run the study fan on low", "want": [{"name": "control_fan", "arguments": {"room": "study", "action": "on", "speed": "low"}}]}
+{"input": "open the kitchen blinds", "want": [{"name": "control_blinds", "arguments": {"room": "kitchen", "action": "open"}}]}
+{"input": "close the blinds in the living room", "want": [{"name": "control_blinds", "arguments": {"room": "living_room", "action": "close"}}]}
+{"input": "open up the bedroom blinds", "want": [{"name": "control_blinds", "arguments": {"room": "bedroom", "action": "open"}}]}
+{"input": "start the robot vacuum", "want": [{"name": "start_robot_vacuum", "arguments": {"action": "start"}}]}
+{"input": "start vacuuming the bedroom", "want": [{"name": "start_robot_vacuum", "arguments": {"action": "start", "room": "bedroom"}}]}
+{"input": "stop the robot vacuum", "want": [{"name": "start_robot_vacuum", "arguments": {"action": "stop"}}]}
+{"input": "turn on the lights", "want": [], "critical": true}
+{"input": "set the thermostat to something comfortable", "want": [], "critical": true}
+{"input": "open the blinds", "want": [], "critical": true}
+{"input": "turn the fan on", "want": [], "critical": true}
+{"input": "lock the back door", "want": []}
+{"input": "check whether the robot vacuum is charging", "want": []}
+{"input": "play some jazz in the living room", "want": []}
+{"input": "don't turn on the study lights", "want": [], "critical": true}
+{"input": "do not close the living room blinds", "want": [], "critical": true}
+{"input": "never run the vacuum while I am on a call", "want": [], "critical": true}
+{"input": "dim the bedroom lights to 150 percent", "want": [], "critical": true}
+{"input": "set the thermostat to 40 degrees", "want": [], "critical": true}
+{"input": "turn off the bedroom lights and set the thermostat to 18 degrees", "want": [{"name": "control_lights", "arguments": {"room": "bedroom", "action": "off"}}, {"name": "set_thermostat", "arguments": {"temperature": 18}}]}
+{"input": "start the vacuum in the kitchen and open the living room blinds", "want": [{"name": "start_robot_vacuum", "arguments": {"action": "start", "room": "kitchen"}}, {"name": "control_blinds", "arguments": {"room": "living_room", "action": "open"}}]}

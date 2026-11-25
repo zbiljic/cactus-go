@@ -1,0 +1,1 @@
+date: 2026-07-21 Tue 14:30; Copy names, merchants, and descriptions verbatim from the user. Record only values the user stated; never estimate. Map each explicit supported record to exactly one declared call. Unsupported, incomplete, ambiguous, and negated requests return no call.

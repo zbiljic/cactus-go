@@ -1,0 +1,32 @@
+{"input": "add Maya Chen to my contacts", "want": [{"name": "create_contact", "arguments": {"name": "Maya Chen"}}]}
+{"input": "save Leo Park to contacts, phone 555-0134", "want": [{"name": "create_contact", "arguments": {"name": "Leo Park", "phone": "555-0134"}}]}
+{"input": "create a contact for Nadia Osei, number 917-555-0188, email nadia@osei.dev", "want": [{"name": "create_contact", "arguments": {"name": "Nadia Osei", "phone": "917-555-0188", "email": "nadia@osei.dev"}}]}
+{"input": "put Tomás Rivera in my contacts", "want": [{"name": "create_contact", "arguments": {"name": "Tomás Rivera"}}]}
+{"input": "log an expense of 23 for transport", "want": [{"name": "log_expense", "arguments": {"amount": 23, "category": "transport"}}]}
+{"input": "record an 85.99 groceries expense from FreshMart", "want": [{"name": "log_expense", "arguments": {"amount": 85.99, "category": "groceries", "merchant": "FreshMart"}}]}
+{"input": "track 142.75 spent on utilities", "want": [{"name": "log_expense", "arguments": {"amount": 142.75, "category": "utilities"}}]}
+{"input": "capture 260 in shopping spend from Uniqlo", "want": [{"name": "log_expense", "arguments": {"amount": 260, "category": "shopping", "merchant": "Uniqlo"}}]}
+{"input": "log 18.75 for entertainment", "want": [{"name": "log_expense", "arguments": {"amount": 18.75, "category": "entertainment"}}]}
+{"input": "log a meal, grilled salmon with rice", "want": [{"name": "log_meal", "arguments": {"description": "grilled salmon with rice"}}]}
+{"input": "log lunch, leftover pad thai", "want": [{"name": "log_meal", "arguments": {"description": "leftover pad thai", "meal_type": "lunch"}}]}
+{"input": "record oatmeal with berries for breakfast", "want": [{"name": "log_meal", "arguments": {"description": "oatmeal with berries", "meal_type": "breakfast"}}]}
+{"input": "jot down what i ate, rice cakes with peanut butter", "want": [{"name": "log_meal", "arguments": {"description": "rice cakes with peanut butter"}}]}
+{"input": "log 750 ml of water", "want": [{"name": "log_water_intake", "arguments": {"amount_ml": 750}}]}
+{"input": "record 500 ml of water intake", "want": [{"name": "log_water_intake", "arguments": {"amount_ml": 500}}]}
+{"input": "i drank 1200 ml of water, log it", "want": [{"name": "log_water_intake", "arguments": {"amount_ml": 1200}}]}
+{"input": "log my weight at 82.5 kg", "want": [{"name": "log_weight", "arguments": {"weight_kg": 82.5}}]}
+{"input": "record a weight of 74 kg", "want": [{"name": "log_weight", "arguments": {"weight_kg": 74}}]}
+{"input": "log an expense of 45 from this afternoon", "want": [], "critical": true}
+{"input": "record my transport spending from today as an expense", "want": [], "critical": true}
+{"input": "log my water intake from this morning", "want": [], "critical": true}
+{"input": "log my current weight for me", "want": [], "critical": true}
+{"input": "text Marcus to ask about his new number", "want": []}
+{"input": "how much have i spent on groceries this month", "want": []}
+{"input": "delete yesterday's lunch entry from the log", "want": []}
+{"input": "don't log the 15.40 i spent on transport", "want": [], "critical": true}
+{"input": "do not add Ravi Kumar at 415-555-0162 to my contacts", "want": [], "critical": true}
+{"input": "never log 79.4 kg as my weight", "want": [], "critical": true}
+{"input": "log my weight as 500 kg", "want": [], "critical": true}
+{"input": "log 9000 ml of water for today", "want": [], "critical": true}
+{"input": "log lunch, turkey sandwich on rye, and 600 ml of water", "want": [{"name": "log_meal", "arguments": {"description": "turkey sandwich on rye", "meal_type": "lunch"}}, {"name": "log_water_intake", "arguments": {"amount_ml": 600}}]}
+{"input": "log my weight of 78.4 kg and 350 ml of water", "want": [{"name": "log_weight", "arguments": {"weight_kg": 78.4}}, {"name": "log_water_intake", "arguments": {"amount_ml": 350}}]}

@@ -319,6 +319,19 @@ go run ./cmd/cactusz doctor --generation 2 --smoke
 go run ./cmd/cactusz test --generation 2
 ```
 
+`cactusz eval` scores a tool set against JSONL cases. Six ready suites, smart
+home, media player, productivity, wearable, kitchen appliance and data capture,
+are in [cmd/cactusz/testdata/environments](cmd/cactusz/testdata/environments)
+with their failing cases on the pinned engine. Each still fails a critical
+case there, so the command exits with status 1:
+
+```sh
+go run ./cmd/cactusz eval \
+  --tools cmd/cactusz/testdata/environments/smart_home/tools.json \
+  --system-file cmd/cactusz/testdata/environments/smart_home/system.txt \
+  --cases cmd/cactusz/testdata/environments/smart_home/cases.jsonl
+```
+
 Responses preserve `suppressed_calls` for inspection. `Run` executes only
 `function_calls`; it never executes suppressed calls automatically.
 
