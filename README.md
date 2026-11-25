@@ -137,6 +137,17 @@ if err := cactus.ValidateResponse(response, query); err != nil {
 }
 ```
 
+`Complete` also flags a `date` or `date-time` argument whose year is not written
+in the conversation, such as 2026 when the user wrote "5th September 2031".
+Without any written year nothing is checked. The `date:` fact's year counts only
+when the input names a relative day: today, tonight, tomorrow, yesterday, next,
+this, coming, now, a weekday, or "in 3 days" and the like. A date without a
+year, such as "March 4th", is not one, so once the conversation has a year it
+is flagged unless its year was written. `Run` checks the dates of its first
+turn; a manual loop through `Complete` checks every turn, reading a tool result
+as the input. `Reset`, stateless requests and switching agents forget the
+years.
+
 ## Repeated calls
 
 The model emits the calls of a multi-step request together, and can call a tool

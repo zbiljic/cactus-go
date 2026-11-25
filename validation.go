@@ -12,8 +12,9 @@ import (
 	"unicode/utf8"
 )
 
-// ValidateResponse checks only engine validation warnings, accepting absent
-// metadata. It rejects negation and ungrounded field paths.
+// ValidateResponse checks only the response's validation warnings, the
+// engine's and the dates Complete flags, accepting absent metadata. It rejects
+// negation and ungrounded field paths.
 //
 // Sources are the texts the request was built from, usually the user's input
 // and the system facts. The engine can flag a number the user did write, such

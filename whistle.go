@@ -269,6 +269,8 @@ func (w *Whistle) Embed(ctx context.Context, pcm []float32) ([]float32, error) {
 
 // Complete transcribes PCM and completes a raw Needle 3 turn inside the engine.
 // It returns tool calls without executing handlers or applying ValidateResponse.
+// Date arguments are checked against the years heard, as Agent.Complete
+// checks them against written years.
 // textAgent must be a Needle 3 Agent created by New that shares this engine.
 func (w *Whistle) Complete(ctx context.Context, textAgent *Agent, pcm []float32, options AudioOptions, maxNewTokens int) (Response, error) {
 	if err := ctx.Err(); err != nil {
@@ -305,12 +307,22 @@ func (w *Whistle) Complete(ctx context.Context, textAgent *Agent, pcm []float32,
 	api := w.runtime.api
 	if a.stateless {
 		api.reset()
+		clear(a.years)
 	}
 	api.setAudio(bytePointer(language), bytePointer(keywords), timestamps)
 	defer api.setAudio(nil, nil, 0)
 	clear(a.buffer)
 	code := api.completeAudio(nil, pcmPointer(pcm), int32(len(pcm)), int32(maxNewTokens), a.buffer, int32(len(a.buffer)))
-	return a.decodeResponse(code)
+	response, err := a.decodeResponse(code)
+	if err == nil {
+		heard := ""
+		if response.AudioText != nil {
+			heard = *response.AudioText
+		}
+		a.addYears(heard)
+		groundDates(&response, a.dateSchemas, a.years, a.systemText(), heard)
+	}
+	return response, err
 }
 
 // reserve grows the output buffer for long clips, as upstream does, so a

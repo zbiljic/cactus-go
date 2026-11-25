@@ -2,10 +2,13 @@ package cactus
 
 import (
 	"context"
+	"encoding/json"
 	"math"
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -166,5 +169,62 @@ func TestNativeThreads(t *testing.T) {
 	response, err := a.Complete(ctx, "hello", 32)
 	if err != nil || !response.Success {
 		t.Fatalf("response=%+v err=%v", response, err)
+	}
+}
+
+// TestNativeDateGrounding checks date grounding on engine output: a date is
+// flagged exactly when its year is neither written nor licensed.
+func TestNativeDateGrounding(t *testing.T) {
+	if os.Getenv("CACTUS_TEST_NATIVE") != "1" {
+		t.Skip("set CACTUS_TEST_NATIVE=1 to test date grounding on the engine")
+	}
+	type event struct {
+		Title string `json:"title"`
+		Date  string `json:"date" jsonschema:"format=date"`
+	}
+	ctx := context.Background()
+	agent, err := New(ctx, Config{
+		Tools:     []Tool{{Schema: SchemaFor[event]("create_event", "Create a calendar event.")}},
+		System:    "date: 2026-11-25 Wed 14:30",
+		Stateless: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer agent.Close()
+	checked := 0
+	for _, test := range []struct {
+		query string
+		// years are the years a date may carry; nil means it is not checked.
+		years []int
+	}{
+		{"plan the 2030 kickoff on Jan 3rd 2030", []int{2030}},
+		{"add review on 5th September 2031", []int{2031}},
+		{"add the March 2019 reunion follow-up tomorrow", []int{2019, 2026}},
+		{"schedule dentist tomorrow", nil},
+	} {
+		response, err := agent.Complete(ctx, test.query, 0)
+		if err != nil {
+			t.Fatalf("Complete(%q) error = %v", test.query, err)
+		}
+		if len(response.FunctionCalls) != 1 {
+			t.Logf("Complete(%q) returned %d calls; not checked", test.query, len(response.FunctionCalls))
+			continue
+		}
+		var arguments event
+		if err := json.Unmarshal(response.FunctionCalls[0].Arguments, &arguments); err != nil || len(arguments.Date) < 4 {
+			t.Fatalf("Complete(%q) arguments = %s", test.query, response.FunctionCalls[0].Arguments)
+		}
+		year, _ := strconv.Atoi(arguments.Date[:4])
+		wantFlag := test.years != nil && !slices.Contains(test.years, year)
+		flagged := response.Validation != nil && slices.Contains(response.Validation.Ungrounded, "create_event.date")
+		if flagged != wantFlag {
+			t.Errorf("Complete(%q) date %s flagged = %v, want %v", test.query, arguments.Date, flagged, wantFlag)
+		}
+		t.Logf("%q -> %s flagged=%v", test.query, arguments.Date, flagged)
+		checked++
+	}
+	if checked == 0 {
+		t.Fatal("no case returned a single call to check")
 	}
 }

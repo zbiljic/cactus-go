@@ -34,7 +34,8 @@ type FunctionCall struct {
 	Arguments json.RawMessage `json:"arguments"`
 }
 
-// Validation contains warnings produced by the Needle engine.
+// Validation contains the engine's warnings and, from Complete, the date
+// arguments whose year is not written in the conversation.
 type Validation struct {
 	Ungrounded []string `json:"ungrounded"`
 	Negation   bool     `json:"negation"`
@@ -127,4 +128,9 @@ type Agent struct {
 	toolIndexPath []byte
 	buffer        []byte
 	closed        bool
+	// dateSchemas holds each tool's parameters for date grounding.
+	dateSchemas map[string]map[string]any
+	// years are the years written in the conversation's inputs, guarded by
+	// the runtime mutex.
+	years map[int]bool
 }

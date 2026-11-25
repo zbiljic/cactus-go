@@ -147,6 +147,7 @@ func prepareAgent(config Config) (*Agent, error) {
 		weightsPath:   weightsPath,
 		toolIndexPath: toolIndexPath,
 		buffer:        make([]byte, bufferSize),
+		dateSchemas:   dateSchemas(toolsJSON),
 	}, nil
 }
 
@@ -176,12 +177,16 @@ func resolveLibraryPath(ctx context.Context, config Config) (string, error) {
 	})
 }
 
-// Complete performs raw inference without applying response validation.
+// Complete performs raw inference without applying response validation. It
+// adds to Validation.Ungrounded each date or date-time argument whose year is
+// not written in the conversation, nor, when text names a relative day such as
+// "tomorrow" or a weekday, in the system facts. Without any written year it
+// adds nothing.
 func (a *Agent) Complete(ctx context.Context, text string, maxNewTokens int) (Response, error) {
-	return a.complete(ctx, text, maxNewTokens, a.stateless)
+	return a.complete(ctx, text, maxNewTokens, a.stateless, true)
 }
 
-func (a *Agent) complete(ctx context.Context, text string, maxNewTokens int, reset bool) (Response, error) {
+func (a *Agent) complete(ctx context.Context, text string, maxNewTokens int, reset, ground bool) (Response, error) {
 	if err := ctx.Err(); err != nil {
 		return Response{}, err
 	}
@@ -206,7 +211,9 @@ func (a *Agent) complete(ctx context.Context, text string, maxNewTokens int, res
 	}
 	if reset {
 		a.runtime.api.reset()
+		clear(a.years)
 	}
+	a.addYears(text)
 	clear(a.buffer)
 	code := a.runtime.api.complete(
 		bytePointer(input),
@@ -214,7 +221,26 @@ func (a *Agent) complete(ctx context.Context, text string, maxNewTokens int, res
 		a.buffer,
 		int32(len(a.buffer)),
 	)
-	return a.decodeResponse(code)
+	response, err := a.decodeResponse(code)
+	if err == nil && ground {
+		groundDates(&response, a.dateSchemas, a.years, a.systemText(), text)
+	}
+	return response, err
+}
+
+// addYears records the years written in text; called with the runtime mutex
+// held.
+func (a *Agent) addYears(text string) {
+	for year := range sourceYears(text) {
+		if a.years == nil {
+			a.years = make(map[int]bool)
+		}
+		a.years[year] = true
+	}
+}
+
+func (a *Agent) systemText() string {
+	return string(bytes.TrimSuffix(a.system, []byte{0}))
 }
 
 // decodeResponse is called with the runtime mutex held.
@@ -280,7 +306,7 @@ func (a *Agent) Run(ctx context.Context, query string, maxSteps, maxNewTokens in
 	if err != nil {
 		return Response{}, err
 	}
-	sources := []string{query, string(bytes.TrimSuffix(a.system, []byte{0}))}
+	sources := []string{query, a.systemText()}
 	executed := make([]any, 0)
 	used := make(map[string]bool)
 	if err := ValidateResponse(response, sources...); err != nil {
@@ -306,7 +332,7 @@ func (a *Agent) Run(ctx context.Context, query string, maxSteps, maxNewTokens in
 		if err != nil {
 			return Response{}, fmt.Errorf("cactus: encode tool results: %w", err)
 		}
-		response, err = a.complete(ctx, string(payload), maxNewTokens, false)
+		response, err = a.complete(ctx, string(payload), maxNewTokens, false, false)
 		if err != nil {
 			return Response{}, err
 		}
@@ -357,6 +383,7 @@ func (a *Agent) Reset(ctx context.Context) error {
 		return err
 	}
 	a.runtime.api.reset()
+	clear(a.years)
 	return nil
 }
 

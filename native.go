@@ -187,6 +187,7 @@ func (r *processRuntime) bindLocked(a *Agent) error {
 		r.active = nil
 		return r.api.failure("initialize", code, "")
 	}
+	clear(a.years)
 	r.active = a
 	return nil
 }
