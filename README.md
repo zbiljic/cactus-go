@@ -137,6 +137,19 @@ if err := cactus.ValidateResponse(response, query); err != nil {
 }
 ```
 
+## Repeated calls
+
+The model emits the calls of a multi-step request together, and can call a tool
+again after seeing its result, often with altered arguments such as a different
+year. It does so less when a handler's result states the outcome, such as
+`{"status": "created", "title": "Dentist"}`, than when it is `nil`, `"ok"` or
+empty.
+
+`Run` executes each tool in one turn at most, counting failed calls: it stops
+before a turn that calls a tool an earlier turn executed and returns that
+response, after validation, without an error. Its calls repeat completed work,
+so do not execute them. A manual loop with `Complete` needs its own guard.
+
 ## Closing
 
 `Close` releases an agent's response buffer and native binding; later calls

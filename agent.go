@@ -259,6 +259,15 @@ func nativeOutput(api *nativeAPI, operation string, code int32, buffer []byte) (
 // entire flagged turn before executing any tool calls, without retrying, and
 // returns the raw flagged response together with results from earlier
 // completed rounds.
+//
+// The model emits the calls of a multi-step request together, and can call a
+// tool again after seeing its result, often with altered arguments. It does so
+// less when the result states the outcome, such as {"status":"created"}, than
+// when it is nil, "ok" or empty. Run executes each tool in one turn at most,
+// counting failed calls: it stops before a turn that calls a tool an earlier
+// turn executed and returns that response, after validation, without an
+// error. Its calls repeat completed work; do not execute them. A manual loop
+// with Complete needs its own guard.
 func (a *Agent) Run(ctx context.Context, query string, maxSteps, maxNewTokens int) (Response, error) {
 	if maxSteps == 0 {
 		maxSteps = DefaultMaxSteps
@@ -273,12 +282,14 @@ func (a *Agent) Run(ctx context.Context, query string, maxSteps, maxNewTokens in
 	}
 	sources := []string{query, string(bytes.TrimSuffix(a.system, []byte{0}))}
 	executed := make([]any, 0)
+	used := make(map[string]bool)
 	if err := ValidateResponse(response, sources...); err != nil {
 		response.Results = executed
 		return response, fmt.Errorf("cactus: run: %w", err)
 	}
 	for range maxSteps {
-		if response.Type != ResponseCall || len(response.FunctionCalls) == 0 {
+		if response.Type != ResponseCall || len(response.FunctionCalls) == 0 ||
+			usesTool(used, response.FunctionCalls) {
 			break
 		}
 
@@ -287,6 +298,9 @@ func (a *Agent) Run(ctx context.Context, query string, maxSteps, maxNewTokens in
 			result := a.execute(ctx, call)
 			results = append(results, result)
 			executed = append(executed, result)
+		}
+		for _, call := range response.FunctionCalls {
+			used[call.Name] = true
 		}
 		payload, err := json.Marshal(results)
 		if err != nil {
@@ -303,6 +317,16 @@ func (a *Agent) Run(ctx context.Context, query string, maxSteps, maxNewTokens in
 	}
 	response.Results = executed
 	return response, nil
+}
+
+// usesTool reports whether a call in turn names a tool in used.
+func usesTool(used map[string]bool, turn []FunctionCall) bool {
+	for _, call := range turn {
+		if used[call.Name] {
+			return true
+		}
+	}
+	return false
 }
 
 // Close releases the agent's native binding and response buffer. Later calls

@@ -476,21 +476,22 @@ func TestRunExecutesToolsUntilResponse(t *testing.T) {
 
 func TestRunStatelessPreservesToolRounds(t *testing.T) {
 	t.Parallel()
+	ok := func(context.Context, json.RawMessage) (any, error) {
+		return "ok", nil
+	}
 	for _, stateless := range []bool{false, true} {
 		t.Run(map[bool]string{false: "stateful", true: "stateless"}[stateless], func(t *testing.T) {
 			fake := &fakeNative{responses: [][]byte{
 				[]byte(`{"type":"call","function_calls":[{"name":"ping","arguments":{}}]}`),
-				[]byte(`{"type":"call","function_calls":[{"name":"ping","arguments":{}}]}`),
+				[]byte(`{"type":"call","function_calls":[{"name":"pong","arguments":{}}]}`),
 				[]byte(`{"type":"respond"}`),
 			}}
 			a, runtime := newTestAgent(t, fake, Config{
 				Stateless: stateless,
-				Tools: []Tool{{
-					Schema: ToolSchema{Name: "ping"},
-					Handler: func(context.Context, json.RawMessage) (any, error) {
-						return "ok", nil
-					},
-				}},
+				Tools: []Tool{
+					{Schema: ToolSchema{Name: "ping"}, Handler: ok},
+					{Schema: ToolSchema{Name: "pong"}, Handler: ok},
+				},
 			})
 			wantResets := 0
 			if stateless {
@@ -732,7 +733,7 @@ func TestRunValidation(t *testing.T) {
 			name: "flagged number written in query in later round",
 			responses: [][]byte{
 				validCall,
-				call("tool", `{"total":1200}`, `,"validation":{"ungrounded":["tool.total"]}`),
+				call("next", `{"total":1200}`, `,"validation":{"ungrounded":["next.total"]}`),
 				[]byte(`{"type":"respond"}`),
 			},
 			maxSteps:      2,
@@ -759,15 +760,16 @@ func TestRunValidation(t *testing.T) {
 			t.Parallel()
 			fake := &fakeNative{responses: append([][]byte(nil), test.responses...)}
 			handlers := 0
+			handler := func(context.Context, json.RawMessage) (any, error) {
+				handlers++
+				return "ok", nil
+			}
 			agent, _ := newTestAgent(t, fake, Config{
 				System: test.system,
-				Tools: []Tool{{
-					Schema: ToolSchema{Name: "tool"},
-					Handler: func(context.Context, json.RawMessage) (any, error) {
-						handlers++
-						return "ok", nil
-					},
-				}},
+				Tools: []Tool{
+					{Schema: ToolSchema{Name: "tool"}, Handler: handler},
+					{Schema: ToolSchema{Name: "next"}, Handler: handler},
+				},
 			})
 			query := test.query
 			if query == "" {
