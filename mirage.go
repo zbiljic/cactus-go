@@ -131,6 +131,8 @@ type Description struct {
 // over the image width and height; multiply x by width/1000 and y by
 // height/1000 for pixels. Details not selected by Fields are empty.
 type VisionObject struct {
+	// ID names the entity the object belongs to. Instances of one entity,
+	// such as two trees, share an ID.
 	ID   int    `json:"id"`
 	Name string `json:"name"`
 	// BBox is [x0, y0, x1, y1].
@@ -146,6 +148,7 @@ type VisionObject struct {
 }
 
 // TextLine is a line of recognized text, with details as in VisionObject.
+// The text reader reads Latin script only.
 type TextLine struct {
 	Text  string    `json:"string"`
 	BBox  []float64 `json:"bbox,omitempty"`
@@ -153,7 +156,7 @@ type TextLine struct {
 	Point []float64 `json:"point,omitempty"`
 }
 
-// Relation links two objects by ID, as in {1, "next_to", 2}.
+// Relation links two entities by object ID, as in {1, "next_to", 2}.
 type Relation struct {
 	Subject   int    `json:"subject"`
 	Predicate string `json:"predicate"`

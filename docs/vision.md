@@ -29,11 +29,21 @@ A `Description` has these sections:
 - `Scene`: attributes such as `background`, `lighting` and `style`.
 - `Objects`: each with an `ID`, a `Name` and the details listed below.
 - `Text`: recognized lines.
-- `Relations`: links between object IDs, such as `{2, "part_of", 5}`.
+- `Relations`: links between entities by object ID, such as
+  `{2, "part_of", 5}`.
 - `Reasoning`: the model's short rationale.
 - `Regions` and `Events`: left as raw JSON.
 
 `Raw` keeps the engine's JSON, including any part these types do not model.
+
+An object's `ID` names the entity it belongs to. When one entity covers several
+instances, such as two trees, every box shares that `ID`, and relations and
+events refer to the entity.
+
+The text reader reads Latin script only. Its 306 characters are the 95
+printable ASCII characters including space, every character from À to ÿ
+except × and ÷, all 128 characters of Latin Extended-A from U+0100 to U+017F,
+and the 21 symbols `¡ £ ¥ § © « ® ° ¶ · » ¿ € • … – — ‘ ’ “ ”`.
 
 Coordinates are in a 0 to 1000 space over the image width and height:
 
