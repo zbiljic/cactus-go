@@ -94,13 +94,9 @@ func TestDigitValue(t *testing.T) {
 	}
 }
 
-var invoiceSchema = ToolSchema{Name: "Invoice", Parameters: map[string]any{
-	"type": "object",
-	"properties": map[string]any{
-		"vendor":   map[string]any{"type": "string"},
-		"due_date": map[string]any{"type": "string", "format": "date"},
-	},
-}}
+var invoiceSchema = ToolSchema{Name: "Invoice", Parameters: json.RawMessage(
+	`{"type":"object","properties":{"vendor":{"type":"string"},"due_date":{"type":"string","format":"date"}}}`,
+)}
 
 func invoiceCall(due string) []byte {
 	return []byte(`{"type":"call","function_calls":[{"name":"Invoice","arguments":{"vendor":"Acme","due_date":"` + due + `"}}]}`)
@@ -300,10 +296,7 @@ func TestRunDoesNotGroundLaterRounds(t *testing.T) {
 		[]byte(`{"type":"call","function_calls":[{"name":"Remind","arguments":{"on":"2026-09-01"}}]}`),
 		[]byte(`{"type":"respond"}`),
 	}}
-	remind := ToolSchema{Name: "Remind", Parameters: map[string]any{
-		"type":       "object",
-		"properties": map[string]any{"on": map[string]any{"type": "string", "format": "date"}},
-	}}
+	remind := ToolSchema{Name: "Remind", Parameters: json.RawMessage(`{"type":"object","properties":{"on":{"type":"string","format":"date"}}}`)}
 	ok := func(context.Context, json.RawMessage) (any, error) { return "ok", nil }
 	agent, _ := newTestAgent(t, fake, Config{Tools: []Tool{{Schema: invoiceSchema, Handler: ok}, {Schema: remind, Handler: ok}}})
 	response, err := agent.Run(context.Background(), "bill Acme on 5th September 2031", 0, 0)

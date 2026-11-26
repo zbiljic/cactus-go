@@ -81,13 +81,7 @@ func TestToolSchemaJSON(t *testing.T) {
 	schema := ToolSchema{
 		Name:        "weather",
 		Description: "Get the weather for a city.",
-		Parameters: map[string]any{
-			"type": "object",
-			"properties": map[string]any{
-				"city": map[string]any{"type": "string"},
-			},
-			"required": []string{"city"},
-		},
+		Parameters:  json.RawMessage(`{"type":"object","properties":{"city":{"type":"string"}},"required":["city"]}`),
 	}
 	data, err := json.Marshal(schema)
 	if err != nil {

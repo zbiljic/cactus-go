@@ -92,11 +92,14 @@ func prepareAgent(config Config) (*Agent, error) {
 			return nil, fmt.Errorf("cactus: duplicate tool %q", tool.Schema.Name)
 		}
 		seen[tool.Schema.Name] = struct{}{}
-		if tool.Schema.Parameters == nil {
-			tool.Schema.Parameters = map[string]any{
-				"type":       "object",
-				"properties": map[string]any{},
-			}
+		parameters := bytes.Trim(tool.Schema.Parameters, " \t\r\n")
+		switch {
+		case len(parameters) == 0 || bytes.Equal(parameters, []byte("null")):
+			tool.Schema.Parameters = json.RawMessage(`{"type":"object","properties":{}}`)
+		case !json.Valid(parameters):
+			return nil, fmt.Errorf("cactus: tool %q: parameters are not valid JSON", tool.Schema.Name)
+		case parameters[0] != '{':
+			return nil, fmt.Errorf("cactus: tool %q: parameters are not a JSON object", tool.Schema.Name)
 		}
 		schemas = append(schemas, tool.Schema)
 		if tool.Handler != nil {

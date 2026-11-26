@@ -105,8 +105,8 @@ func TestPrepareAgentConfiguresNativeSession(t *testing.T) {
 	if len(schemas) != 1 || schemas[0].Name != "weather" {
 		t.Fatalf("tools = %#v", schemas)
 	}
-	if schemas[0].Parameters["type"] != "object" {
-		t.Fatalf("default parameters = %#v", schemas[0].Parameters)
+	if got := string(schemas[0].Parameters); got != `{"type":"object","properties":{}}` {
+		t.Fatalf("default parameters = %s", got)
 	}
 }
 
@@ -157,6 +157,7 @@ func TestPrepareAgentValidatesConfig(t *testing.T) {
 	tests := []struct {
 		name   string
 		config Config
+		want   string
 	}{
 		{name: "empty tool name", config: Config{Tools: []Tool{{Handler: handler}}}},
 		{name: "duplicate tool", config: Config{Tools: []Tool{
@@ -164,8 +165,14 @@ func TestPrepareAgentValidatesConfig(t *testing.T) {
 			{Schema: ToolSchema{Name: "one"}},
 		}}},
 		{name: "invalid schema", config: Config{Tools: []Tool{{
-			Schema: ToolSchema{Name: "bad", Parameters: map[string]any{"invalid": make(chan int)}},
-		}}}},
+			Schema: ToolSchema{Name: "bad", Parameters: json.RawMessage(`{"type":`)},
+		}}}, want: `cactus: tool "bad": parameters are not valid JSON`},
+		{name: "array schema", config: Config{Tools: []Tool{{
+			Schema: ToolSchema{Name: "list", Parameters: json.RawMessage(` []`)},
+		}}}, want: `cactus: tool "list": parameters are not a JSON object`},
+		{name: "non-JSON whitespace", config: Config{Tools: []Tool{{
+			Schema: ToolSchema{Name: "nbsp", Parameters: json.RawMessage("\u00a0{}")},
+		}}}, want: `cactus: tool "nbsp": parameters are not valid JSON`},
 		{name: "small buffer", config: Config{BufferSize: 1}},
 		{name: "large buffer", config: Config{BufferSize: int(^uint32(0))}},
 		{name: "NUL system", config: Config{System: "bad\x00value"}},
@@ -174,10 +181,23 @@ func TestPrepareAgentValidatesConfig(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
-			if _, err := prepareAgent(test.config); err == nil {
-				t.Fatal("prepareAgent() error = nil")
+			_, err := prepareAgent(test.config)
+			if err == nil || test.want != "" && err.Error() != test.want {
+				t.Fatalf("prepareAgent() error = %v, want %q", err, test.want)
 			}
 		})
+	}
+}
+
+func TestPrepareAgentDefaultsEmptyParameters(t *testing.T) {
+	t.Parallel()
+
+	for _, parameters := range []string{"", " ", "null", " null\n"} {
+		fake := &fakeNative{}
+		newTestAgent(t, fake, Config{Tools: []Tool{{Schema: ToolSchema{Name: "ping", Parameters: json.RawMessage(parameters)}}}})
+		if want := `[{"name":"ping","parameters":{"type":"object","properties":{}}}]`; fake.tools[0] != want {
+			t.Errorf("parameters %q: tools JSON = %s", parameters, fake.tools[0])
+		}
 	}
 }
 
@@ -1270,5 +1290,19 @@ func TestSetThreads(t *testing.T) {
 	}
 	if !reflect.DeepEqual(calls, []int32{2, 0}) || r.threads != 0 {
 		t.Fatalf("set_threads calls = %v, stored = %d", calls, r.threads)
+	}
+}
+
+func TestPrepareAgentSendsParametersAsWritten(t *testing.T) {
+	t.Parallel()
+
+	fake := &fakeNative{}
+	newTestAgent(t, fake, Config{Tools: []Tool{{Schema: ToolSchema{
+		Name:       "lights",
+		Parameters: json.RawMessage(`{"type": "object", "properties": {"zone": {"type": "string"}, "action": {"type": "string"}}}`),
+	}}}})
+	want := `[{"name":"lights","parameters":{"type":"object","properties":{"zone":{"type":"string"},"action":{"type":"string"}}}}]`
+	if fake.tools[0] != want {
+		t.Fatalf("tools JSON = %s, want %s", fake.tools[0], want)
 	}
 }

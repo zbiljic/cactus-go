@@ -66,9 +66,14 @@ type Response struct {
 
 // ToolSchema describes a function that the model may call.
 type ToolSchema struct {
-	Name        string         `json:"name"`
-	Description string         `json:"description,omitempty"`
-	Parameters  map[string]any `json:"parameters"`
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+	// Parameters is the JSON Schema object of the arguments; empty or null
+	// means none. The engine receives it as written, key order included, and
+	// the model reads that order. Write type, properties and required, in
+	// that order; within a property, type, then enum or items, description
+	// and constraints. SchemaFor writes this order.
+	Parameters json.RawMessage `json:"parameters"`
 	// Triggers opt into native regex routing and can bypass the confidence floor.
 	Triggers []string `json:"triggers,omitempty"`
 }
